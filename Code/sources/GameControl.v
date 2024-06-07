@@ -3,9 +3,35 @@ module GameControl(
     input rst, // Asychronous reset, active high
     input [1:0] keyboard_signal, // 00 for up, 01 for left, 10 for right, 11 for enter
     output reg [6:0] score,
-    output reg [19:0][11:0] objectMatrix, // 1 for existing object, 0 for empty
-    output reg [19:0][11:0] flash, // 1 for flash, 0 for no flash
+    output [239:0] objects, // 1 for existing object, 0 for empty
+    output [239:0] flash, // 1 for flash, 0 for no flash
     output reg [2:0] nextBlock,
 );
+    // Perform clock division
+    wire [31:0] div_res;
+    clkdiv div_inst(.clk(clk), .reset(0), .clk_div(div_res));
+
+    // Map two 1-d arrays to objectMatrix and flashMatrix
+    reg [19:0][11:0] objectMatrix;
+    reg [19:0][11:0] flashMatrix;
+    genvar i;
+    generate
+        for (i = 0; i < 240; i = i + 1) begin
+            assign objects[i] = objectMatrix[i / 12][i % 12];
+            assign flash[i] = flashMatrix[i / 12][i % 12];
+        end
+    endgenerate
+
+    // Main Tetris logic
+    always @(posedge clk) begin
+        if (rst) begin
+            score <= 0;
+            objectMatrix <= 0;
+            flash <= 0;
+            nextBlock <= 0;
+        end else begin
+            // TODO
+        end
+    end
 
 endmodule
