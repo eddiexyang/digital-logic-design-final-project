@@ -47,7 +47,7 @@ assign data_flash = 12'b1100_1100_1100;
 assign vgac_input = ( within_blocks == 1'b0 )    ? data_background :
                     ( en_flash == 1'b1 )         ? data_flash      :
                     ( en_block == 1'b1 )         ? data_block      :
-                                                 ? data_background ; // no blocks in the background image by default
+                                                   data_background ; // no blocks in the background image by default
 
 // Instantiate rom_background IP kernel
 rom_background rom0(
@@ -60,7 +60,7 @@ rom_background rom0(
 rom_block rom1(
     .clka(clk),               // input wire clka
     .addra(addr_block),       // input wire [3:0] addra
-    .douta(data_block),       // output wire [11:0] douta
+    .douta(data_block)        // output wire [11:0] douta
 );
 
 // Instantiate VGAc module
