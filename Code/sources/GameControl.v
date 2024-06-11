@@ -3,9 +3,9 @@ module GameControl(
     input rst, // Asychronous reset, active high
     input [1:0] keyboard_signal, // 00 for up, 01 for left, 10 for right, 11 for enter
     output reg [6:0] score,
-    output [239:0] objects, // 1 for existing object, 0 for empty
-    output [239:0] flash, // 1 for flash, 0 for no flash
-    output reg [2:0] nextBlock,
+    output [199:0] objects, // 1 for existing object, 0 for empty
+    output [199:0] flash, // 1 for flash, 0 for no flash
+    output reg [2:0] nextBlock, // See definition in the documentation
 );
     // Perform clock division
     wire [31:0] div_res;
@@ -21,6 +21,10 @@ module GameControl(
             assign flash[i] = flashMatrix[i / 12][i % 12];
         end
     endgenerate
+
+    // Circuit connection
+    // Failure check
+
 
     // Main Tetris logic
     always @(posedge clk) begin
