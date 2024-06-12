@@ -5,7 +5,7 @@ module GameControl(
     output reg [6:0] score,
     output [199:0] objects, // 1 for existing object, 0 for empty
     output [199:0] flash, // 1 for flash, 0 for no flash
-    output reg [2:0] nextBlock, // See definition in the documentation
+    output reg [2:0] nextBlock // See definition in the documentation
 );
     // Perform clock division
     wire [31:0] div_res;
