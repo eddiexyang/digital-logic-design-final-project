@@ -12,19 +12,20 @@ module GameControl(
     clkdiv div_inst(.clk(clk), .reset(0), .clk_div(div_res));
 
     // Map two 1-d arrays to objectMatrix and flashMatrix
+    // TO BE REVIEWED
     reg [19:0][11:0] objectMatrix;
     reg [19:0][11:0] flashMatrix;
     genvar i;
     generate
-        for (i = 0; i < 240; i = i + 1) begin
-            assign objects[i] = objectMatrix[i / 12][i % 12];
-            assign flash[i] = flashMatrix[i / 12][i % 12];
+        for (i = 0; i < 200; i = i + 1) begin
+            assign objects[i] = objectMatrix[i / 10][i % 10];
+            assign flash[i] = flashMatrix[i / 10][i % 10];
         end
     endgenerate
 
     // Circuit connection
     // Failure check
-
+    // TODO
 
     // Main Tetris logic
     always @(posedge clk) begin
