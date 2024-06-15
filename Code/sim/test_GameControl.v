@@ -13,7 +13,7 @@ module test_GameControl();
 
     initial begin
         clk = 0;
-        rst = 1;
+        rst = 1; #10; rst = 0;
         keyboard_signal = 0;
     end
 
