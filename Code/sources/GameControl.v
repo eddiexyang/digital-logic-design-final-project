@@ -577,7 +577,7 @@ module GameControl(
         for (row = 4; row < 24; row = row + 1) begin
             rowSum = 0;
             for (coln = 0; coln < 10; coln = coln + 1) begin
-                rowSum = rowSum + objectReg[row][col];
+                rowSum = rowSum + objectReg[row][coln];
             end
             if (rowSum == 10) begin
                 // Eliminate the row
