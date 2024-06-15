@@ -31,30 +31,31 @@ module GameControl(
     reg blockLanded = 0;
 
     // Perform clock division
-    wire [31:0] clk_div;
-    clkdiv u_clkdiv(
-        .clk     (clk     ),
-        .reset   (0       ),
-        .clk_div (clk_div  )
-    );
+    reg [31:0] clk_div;
+    always @(posedge clk) begin
+        clk_div <= clk_div + 1;
+    end
 
     // Handle reset signal
     reg rstReg;
     always @(posedge rst) begin
         rstReg <= 1;
+        clk_div <= 0;
+        score <= 7'b0;
+        nextBlock <= 3'b0;
+        currBlockType <= 3'b0;
+        currBlockState <= 2'b0;
+        currBlockCenterX <= 5;
+        currBlockCenterY <= 2;
+        maxHeight <= 0;
         i <= 0;
         j <= 0;
     end
     always @(posedge clk) begin
         if (rstReg) begin
-            score <= 7'b0;
-            nextBlock <= 3'b0;
+            
             objectReg[i][j] <= 0;
-            currBlockType <= 3'b0;
-            currBlockState <= 2'b0;
-            currBlockCenterX <= 5;
-            currBlockCenterY <= 2;
-            maxHeight <= 0;
+            
             if (i == 23 && j == 9) begin
                 i <= 0;
                 j <= 0;
