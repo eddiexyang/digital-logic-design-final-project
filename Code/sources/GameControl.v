@@ -28,6 +28,8 @@ module GameControl(
     reg moveLeftSign = 0;
     reg moveRightSign = 0;
     reg updateBlockPositionSign = 0;
+    reg checkBlockLandedSign = 0;
+    reg eliminateRowSign = 0;
     reg blockLanded = 0;
 
     // Perform clock division
@@ -74,7 +76,7 @@ module GameControl(
     // #################################
 
     // Handle keyboard signal
-    always @(posedge clk_div[20]) begin
+    always @(keyboard_signal[1] or keyboard_signal[0]) begin
         // Handle keyboard signal
         case (keyboard_signal) 
             2'b01: moveLeftSign <= 1;
@@ -421,10 +423,13 @@ module GameControl(
                 endcase
             end
         endcase
+        checkBlockLandedSign <= 1;
     end
 
     // Check if the block has landed and eliminate the full rows
-    // TODO
+    always @(posedge checkBlockLandedSign) begin
+        checkBlockLandedSign <= 0;
+    end
 
     // Map 2-d registers to 1-d signal lines
     genvar k;
