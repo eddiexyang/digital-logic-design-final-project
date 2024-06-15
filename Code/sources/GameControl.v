@@ -1,6 +1,6 @@
 module GameControl(
     input clk,                   // clk signal
-    input rst,                   // Sychronous reset, active high
+    input rst,                   // Asychronous reset, active high
     input [1:0] keyboard_signal, // 00 for idle, 01 for left, 10 for right, 11 for rotate
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
