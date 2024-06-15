@@ -194,7 +194,7 @@ module GameControl(
         currBlockState <= currBlockState + 1;
         prevBlockState <= currBlockState;
         prevBlockCenterX <= currBlockCenterX;
-        prevBlockCenterX <= currBlockCenterY;
+        prevBlockCenterY <= currBlockCenterY;
         updateBlockPositionSign = 1;
     end
 
