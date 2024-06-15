@@ -119,9 +119,14 @@ module GameControl(
         // Border detection
         if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX >= 3 ||
             currBlockType == 3'b000 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
+            currBlockType == 3'b000 && currBlockState == 2'b10 && currBlockCenterX >= 3 ||
+            currBlockType == 3'b000 && currBlockState == 2'b11 && currBlockCenterX >= 1 ||
 
             currBlockType == 3'b001 && currBlockState == 2'b00 && currBlockCenterX >= 1 ||
-            
+            currBlockType == 3'b001 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
+            currBlockType == 3'b001 && currBlockState == 2'b10 && currBlockCenterX >= 1 ||
+            currBlockType == 3'b001 && currBlockState == 2'b11 && currBlockCenterX >= 1 ||
+
             currBlockType == 3'b010 && currBlockState == 2'b00 && currBlockCenterX >= 2 ||
             currBlockType == 3'b010 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
             currBlockType == 3'b010 && currBlockState == 2'b10 && currBlockCenterX >= 2 ||
@@ -151,9 +156,14 @@ module GameControl(
         // Border detection
         if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
             currBlockType == 3'b000 && currBlockState == 2'b01 && currBlockCenterX <= 8 ||
-            
+            currBlockType == 3'b000 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
+            currBlockType == 3'b000 && currBlockState == 2'b11 && currBlockCenterX <= 8 ||
+
             currBlockType == 3'b001 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
-            
+            currBlockType == 3'b001 && currBlockState == 2'b01 && currBlockCenterX <= 7 ||
+            currBlockType == 3'b001 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
+            currBlockType == 3'b001 && currBlockState == 2'b11 && currBlockCenterX <= 7 ||
+
             currBlockType == 3'b010 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
             currBlockType == 3'b010 && currBlockState == 2'b01 && currBlockCenterX <= 7 ||
             currBlockType == 3'b010 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
@@ -189,11 +199,240 @@ module GameControl(
     end
 
     // Update block position and handle block landing
+    // Erase the previous block
     always @(posedge updateBlockPositionSign) begin
-        // TODO
+        case (currBlockType)
+            3'b000: begin
+                case (prevBlockState)
+                    2'b00, 2'b10: begin
+                        objectReg[prevBlockCenterY][prevBlockCenterX - 2] <= 0;
+                        objectReg[prevBlockCenterY][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY][prevBlockCenterX + 1] <= 0;
+                    end
+                    2'b01, 2'b11: begin
+                        objectReg[prevBlockCenterY - 2][prevBlockCenterX] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX] <= 0;
+                    end
+                endcase
+            end
+            3'b001: begin
+                objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+            end
+            3'b010: begin
+                case (prevBlockState)
+                    2'b00: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                    end
+                    2'b01: begin
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                    end
+                    2'b10: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
+                    end
+                    2'b11: begin
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                    end
+                endcase
+            end
+            3'b011: begin
+                case (prevBlockState)
+                    2'b00: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX + 1] <= 0;
+                    end
+                    2'b01: begin
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX + 1] <= 0;
+                    end
+                    2'b10: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX - 1] <= 0;
+                    end
+                    2'b11: begin
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX - 1] <= 0;
+                    end
+                endcase
+            end
+            3'b100: begin
+                case (prevBlockState)
+                    2'b00: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX + 1] <= 0;
+                    end
+                    2'b01: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
+                    end
+                    2'b10: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                    end
+                    2'b11: begin
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
+                        objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
+                        objectReg[prevBlockCenterY + 1][prevBlockCenterX - 1] <= 0;
+                    end
+                endcase
+            end
+        endcase
+        updateBlockPositionSign <= 0;
+    end
+    // Draw the current block
+    always @(negedge updateBlockPositionSign) begin
+        case (currBlockType)
+            3'b000: begin
+                case(currBlockState)
+                    2'b00, 2'b10: begin
+                        objectReg[currBlockCenterY][currBlockCenterX - 2] <= 1;
+                        objectReg[currBlockCenterY][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY][currBlockCenterX + 1] <= 1;
+                    end
+                    2'b01, 2'b11: begin
+                        objectReg[currBlockCenterY - 2][currBlockCenterX] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX] <= 1;
+                    end
+                endcase
+            end
+            3'b001: begin
+                objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+            end
+            3'b010: begin
+                case(currBlockState)
+                    2'b00: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                    end
+                    2'b01: begin
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                    end
+                    2'b10: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
+                    end
+                    2'b11: begin
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                    end
+                endcase
+            end
+            3'b011: begin
+                case(currBlockState)
+                    2'b00: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
+                    end
+                    2'b01: begin
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] <= 1;
+                    end
+                    2'b10: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX - 1] <= 1;
+                    end
+                    2'b11: begin
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
+                    end
+                endcase
+            end
+            3'b100: begin
+                case(currBlockState)
+                    2'b00: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
+                    end
+                    2'b01: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
+                    end
+                    2'b10: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                    end
+                    2'b11: begin
+                        objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                        objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                        objectReg[currBlockCenterY + 1][currBlockCenterX - 1] <= 1;
+                    end
+                endcase
+            end
+        endcase
     end
 
-    // Map 2-d registers to 1-d signal lines
+    // Check if the block has landed and eliminate the full rows
     // TODO
+
+    // Map 2-d registers to 1-d signal lines
+    genvar k;
+    generate
+        for (k = 0; k < 200; k = k + 1) begin: map
+            assign objects[k] = objectReg[k / 10][k % 10];
+            assign flash[k] = flashReg[k / 10][k % 10];
+        end
+    endgenerate
     
 endmodule
