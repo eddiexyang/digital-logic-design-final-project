@@ -4,7 +4,8 @@ module GameControl(
     input [1:0] keyboard_signal, // 00 for idle, 01 for left, 10 for right, 11 for rotate
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
-    output [199:0] objects       // 1 for existing object, 0 for empty
+    output [199:0] objects,      // 1 for existing object, 0 for empty
+    output reg fail                  // 1 for game over
 );
     // Here we use 24x10 registers to store the 20x10 game board
     // the 4 extra rows at top and 1 extra row at bottom
@@ -48,6 +49,7 @@ module GameControl(
         currBlockCenterX <= 5;
         currBlockCenterY <= 2;
         maxHeight <= 0;
+        fail <= 0;
         i <= 0;
         j <= 0;
     end
@@ -449,11 +451,17 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - currBlockCenterY > maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b01, 2'b11: begin
                         if (objectReg[currBlockCenterY + 2][currBlockCenterX] == 1) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 2) > maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                 endcase
@@ -463,6 +471,9 @@ module GameControl(
                     objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                 ) begin
                     blockLanded <= 1;
+                    if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                        maxHeight <= 24 - currBlockCenterY;
+                    end
                 end
             end
             3'b010: begin
@@ -473,6 +484,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b01: begin
@@ -480,6 +494,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b10: begin
@@ -488,6 +505,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - currBlockCenterY > maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b11: begin
@@ -495,6 +515,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                 endcase
@@ -507,6 +530,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b01: begin
@@ -514,6 +540,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 2][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b10: begin
@@ -522,6 +551,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - currBlockCenterY > maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b11: begin
@@ -529,6 +561,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                 endcase
@@ -541,6 +576,9 @@ module GameControl(
                             objectReg[currBlockCenterY    ][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b01: begin
@@ -548,6 +586,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b10: begin
@@ -556,6 +597,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                     2'b11: begin
@@ -563,6 +607,9 @@ module GameControl(
                             objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1
                         ) begin
                             blockLanded <= 1;
+                            if (24 - (currBlockCenterY - 1)> maxHeight) begin
+                                maxHeight <= 24 - currBlockCenterY;
+                            end
                         end
                     end
                 endcase
@@ -594,6 +641,13 @@ module GameControl(
                 // Update the score
                 score = score + 10;
             end
+        end
+    end
+
+    // Detect game failure
+    always @(posedge clk) begin
+        if (fail == 1 || maxHeight >= 20) begin
+            fail <= 1;
         end
     end
 
