@@ -4,13 +4,12 @@ module GameControl(
     input [1:0] keyboard_signal, // 00 for idle, 01 for left, 10 for right, 11 for rotate
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
-    output [199:0] objects,      // 1 for existing object, 0 for empty
-    output [199:0] flash         // 1 for flash, 0 for no flash
+    output [199:0] objects       // 1 for existing object, 0 for empty
 );
     // Here we use 24x10 registers to store the 20x10 game board
-    // the 4 extra rows are used for block generation
-    reg objectReg [23:0][9:0];
-    reg flashReg [23:0][9:0];
+    // the 4 extra rows at top and 1 extra row at bottom
+    // are used for block generation and landing detection
+    reg objectReg [24:0][9:0];
     reg [4:0] maxHeight;
 
     reg [2:0] currBlockType;
@@ -23,7 +22,6 @@ module GameControl(
 
     reg [4:0] i = 0;
     reg [3:0] j = 0;
-    reg flashSign = 0;
     reg rotateSign = 0;
     reg moveLeftSign = 0;
     reg moveRightSign = 0;
@@ -52,7 +50,6 @@ module GameControl(
             score <= 7'b0;
             nextBlock <= 3'b0;
             objectReg[i][j] <= 0;
-            flashReg[i][j] <= 0;
             currBlockType <= 3'b0;
             currBlockState <= 2'b0;
             currBlockCenterX <= 5;
@@ -70,6 +67,16 @@ module GameControl(
             end
         end
     end
+
+    // Fill the bottom row with 1s
+    genvar col;
+    generate
+        for (col = 0; col < 10; col = col + 1) begin: fill
+            always @(posedge clk) begin
+                objectReg[24][col] <= 1;
+            end
+        end
+    endgenerate
 
     // #################################
     // # Main Tetris logic starts here #
@@ -93,6 +100,7 @@ module GameControl(
     // Handle block dropping
     always @(posedge clk_div[25]) begin
         if (blockLanded) begin
+            score <= score + 1;
             // Generate new block
             blockLanded <= 0;
             nextBlock <= $urandom % 5;
@@ -105,19 +113,20 @@ module GameControl(
             prevBlockCenterX <= 5;
             prevBlockCenterY <= 2;
 
-            updateBlockPositionSign = 1;
+            updateBlockPositionSign <= 1;
         end else begin
             // Move block down
             prevBlockState <= currBlockState;
             prevBlockCenterX <= currBlockCenterX;
             prevBlockCenterY <= currBlockCenterY;
             currBlockCenterY <= currBlockCenterY + 1;
-            updateBlockPositionSign = 1;
+            updateBlockPositionSign <= 1;
         end
     end
     
     // Handle block left-moving
     always @(posedge moveLeftSign) begin
+        moveLeftSign <= 0;
         // Border detection
         if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX >= 3 ||
             currBlockType == 3'b000 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
@@ -148,13 +157,13 @@ module GameControl(
             prevBlockCenterX <= currBlockCenterX;
             prevBlockCenterY <= currBlockCenterY;
             prevBlockState <= currBlockState;
-            updateBlockPositionSign = 1;
+            updateBlockPositionSign <= 1;
         end
-        moveLeftSign <= 0;
     end
 
     // Handle block right-moving
     always @(posedge moveRightSign) begin
+        moveRightSign <= 0;
         // Border detection
         if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
             currBlockType == 3'b000 && currBlockState == 2'b01 && currBlockCenterX <= 8 ||
@@ -185,9 +194,8 @@ module GameControl(
             prevBlockCenterX <= currBlockCenterX;
             prevBlockCenterY <= currBlockCenterY;
             prevBlockState <= currBlockState;
-            updateBlockPositionSign = 1;
+            updateBlockPositionSign <= 1;
         end
-        moveRightSign <= 0;
     end
 
     // Handle block rotation
@@ -197,12 +205,13 @@ module GameControl(
         prevBlockState <= currBlockState;
         prevBlockCenterX <= currBlockCenterX;
         prevBlockCenterY <= currBlockCenterY;
-        updateBlockPositionSign = 1;
+        updateBlockPositionSign <= 1;
     end
 
     // Update block position and handle block landing
     // Erase the previous block
     always @(posedge updateBlockPositionSign) begin
+        updateBlockPositionSign <= 0;
         case (currBlockType)
             3'b000: begin
                 case (prevBlockState)
@@ -311,10 +320,10 @@ module GameControl(
                 endcase
             end
         endcase
-        updateBlockPositionSign <= 0;
     end
     // Draw the current block
     always @(negedge updateBlockPositionSign) begin
+        checkBlockLandedSign <= 1;
         case (currBlockType)
             3'b000: begin
                 case(currBlockState)
@@ -423,12 +432,168 @@ module GameControl(
                 endcase
             end
         endcase
-        checkBlockLandedSign <= 1;
     end
 
-    // Check if the block has landed and eliminate the full rows
+    // Check if the block has landed
     always @(posedge checkBlockLandedSign) begin
         checkBlockLandedSign <= 0;
+        eliminateRowSign <= 1;
+        case (currBlockType)
+            3'b000: begin
+                case (currBlockState)
+                    2'b00, 2'b10: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 2] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b01, 2'b11: begin
+                        if (objectReg[currBlockCenterY + 2][currBlockCenterX] == 1) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                endcase
+            end
+            3'b001: begin
+                if (objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                    objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                ) begin
+                    blockLanded <= 1;
+                end
+            end
+            3'b010: begin
+                case (currBlockState)
+                    2'b00: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b01: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1 ||
+                            objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b10: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b11: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                endcase
+            end
+            3'b011: begin
+                case (currBlockState)
+                    2'b00: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b01: begin
+                        if (objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 2][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b10: begin
+                        if (objectReg[currBlockCenterY + 2][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b11: begin
+                        if (objectReg[currBlockCenterY    ][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                endcase
+            end
+            3'b100: begin
+                case (currBlockState)
+                    2'b00: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY    ][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b01: begin
+                        if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b10: begin
+                        if (objectReg[currBlockCenterY    ][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                    2'b11: begin
+                        if (objectReg[currBlockCenterY + 2][currBlockCenterX - 1] == 1 ||
+                            objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1
+                        ) begin
+                            blockLanded <= 1;
+                        end
+                    end
+                endcase
+            end
+        endcase
+    end
+
+    // Eliminate the full rows
+    reg [4:0] rowSum;
+    integer row, coln, p, q, r;
+    always @(posedge eliminateRowSign) begin
+        eliminateRowSign = 0;
+        for (row = 4; row < 24; row = row + 1) begin
+            rowSum = 0;
+            for (coln = 0; coln < 10; coln = coln + 1) begin
+                rowSum = rowSum + objectReg[row][col];
+            end
+            if (rowSum == 10) begin
+                // Eliminate the row
+                for (p = row; p > 4; p = p - 1) begin
+                    for (q = 0; q < 10; q = q + 1) begin
+                        objectReg[p][q] = objectReg[p - 1][q];
+                    end
+                end
+                // Clear the top row
+                for (r = 0; r < 10; r = r + 1) begin
+                    objectReg[4][r] = 0;
+                end
+                // Update the score
+                score = score + 10;
+            end
+        end
     end
 
     // Map 2-d registers to 1-d signal lines
@@ -436,7 +601,6 @@ module GameControl(
     generate
         for (k = 0; k < 200; k = k + 1) begin: map
             assign objects[k] = objectReg[k / 10][k % 10];
-            assign flash[k] = flashReg[k / 10][k % 10];
         end
     endgenerate
     
