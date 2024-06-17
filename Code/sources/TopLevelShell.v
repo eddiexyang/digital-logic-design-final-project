@@ -3,7 +3,6 @@ module TopLevelShell(
     input ps2_clk,
     input ps2_data,
 
-    output rd,
     output hs,
     output vs,
     output [3:0] r,
@@ -64,7 +63,6 @@ module TopLevelShell(
         .nextblock    (nextBlock    ),
         .objectMatrix (objects      ),
         .flash        (200'b0       ),
-        .rd           (rd           ),
         .hs           (hs           ),
         .vs           (vs           ),
         .r            (r            ),
