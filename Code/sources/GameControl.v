@@ -621,7 +621,7 @@ module GameControl(
     end
 
     // Eliminate the full rows
-    reg [4:0] rowSum;
+    reg [4:0] rowSum = 0;
     integer row, coln, p, q, r;
     always @(posedge eliminateRowSign) begin
         eliminateRowSign = 0;
