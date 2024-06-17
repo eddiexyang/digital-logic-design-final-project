@@ -11,7 +11,7 @@ module TopLevelShell(
 );
     // Define reset signals
     reg clrn;
-    wire rst = ~clrn;
+    wire rst;
     assign rst = ~clrn;
 
     // Handle keyboard definitions
