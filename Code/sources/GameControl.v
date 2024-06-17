@@ -27,6 +27,7 @@ module GameControl(
     reg moveLeftSign = 0;
     reg moveRightSign = 0;
     reg updateBlockPositionSign = 0;
+    reg drawCurrentBlockSign = 0;
     reg checkBlockLandedSign = 0;
     reg eliminateRowSign = 0;
     reg blockLanded = 0;
@@ -215,6 +216,7 @@ module GameControl(
     // Erase the previous block
     always @(posedge updateBlockPositionSign) begin
         updateBlockPositionSign <= 0;
+        drawCurrentBlockSign <= 1;
         case (currBlockType)
             3'b000: begin
                 case (prevBlockState)
@@ -325,8 +327,9 @@ module GameControl(
         endcase
     end
     // Draw the current block
-    always @(negedge updateBlockPositionSign) begin
+    always @(posedge drawCurrentBlockSign) begin
         checkBlockLandedSign <= 1;
+        drawCurrentBlockSign <= 0;
         case (currBlockType)
             3'b000: begin
                 case(currBlockState)
