@@ -39,7 +39,7 @@ module GameControl(
     end
 
     // Handle reset signal
-    reg rstReg;
+    reg rstReg = 0;
     always @(posedge rst) begin
         rstReg <= 1;
         clk_div <= 0;
