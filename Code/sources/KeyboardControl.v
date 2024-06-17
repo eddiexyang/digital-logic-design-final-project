@@ -5,7 +5,7 @@ module KeyboardControl(
     input clrn,                       // negative clear signal
     output reg left,                  // signal for left key
     output reg right,                 // signal for right key
-    output reg down,                  // signal for down key
+    output reg down,                  // signal for reset
     output reg up                     // signal for up/rotate key
 );
 
@@ -78,6 +78,7 @@ always @ (posedge clk) begin
                             E0 <= 0;
                         end
                     end
+
                     default: begin
                         if (F0 == 1'b1) begin // On key release, reset signals if they were set by this key
                             left <= 0; right <= 0; down <= 0; up <= 0;
