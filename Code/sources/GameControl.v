@@ -329,6 +329,7 @@ module GameControl(
     // Draw the current block
     always @(posedge drawCurrentBlockSign) begin
         checkBlockLandedSign <= 1;
+        drawCurrentBlockSign <= 0;
         case (currBlockType)
             3'b000: begin
                 case(currBlockState)
