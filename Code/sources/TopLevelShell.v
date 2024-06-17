@@ -35,6 +35,12 @@ module TopLevelShell(
     wire [199:0] objects;
     wire fail;
     
+    // Perform clock division
+    reg [31:0] clk_div = 0;
+    always @(posedge clk) begin
+        clk_div <= clk_div + 1;
+    end
+
     // Instantiate modules
     KeyboardControl u_KeyboardControl(
         .clk      (clk      ),
@@ -58,7 +64,7 @@ module TopLevelShell(
     );
 
     VGAdisplay u_VGAdisplay(
-        .clk          (clk          ),
+        .clk          (clk_div[1]   ),
         .clrn         (clrn         ),
         .nextblock    (nextBlock    ),
         .objectMatrix (objects      ),

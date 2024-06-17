@@ -1,7 +1,7 @@
 # Main clock
 set_property PACKAGE_PIN AC18 [get_ports clk]
 set_property IOSTANDARD LVCMOS18 [get_ports clk]
-create_clock -period 40.000 -name clk [get_ports "clk"]
+create_clock -period 10.000 -name clk [get_ports "clk"]
 
 # keyboard signals
 set_property PACKAGE_PIN N18 [get_ports ps2_clk]
