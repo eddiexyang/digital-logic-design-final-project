@@ -35,7 +35,7 @@ set_property IOSTANDARD LVCMOS33 [get_ports {b[1]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {b[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {b[3]}]
 set_property PACKAGE_PIN M22 [get_ports hs]
-set_property PACKAGE_PIN M21[get_ports vs]
+set_property PACKAGE_PIN M21 [get_ports vs]
 set_property IOSTANDARD LVCMOS33 [get_ports hs]
 set_property IOSTANDARD LVCMOS33 [get_ports vs]
 
