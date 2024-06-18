@@ -30,9 +30,12 @@ module TopLevelShell(
     end
 
     // Handle reset signal from keyboard
-    always @(posedge down) begin
-        clrn = 0;
-        #100 clrn = 1;
+    always @(posedge clk) begin
+        if (down) begin
+            clrn <= 1'b0;
+        end else begin
+            clrn <= 1'b1;
+        end
     end
 
     // Define game signals
@@ -84,7 +87,6 @@ module TopLevelShell(
     // Reset signals
     initial begin
         clrn = 1'b0;
-        #100 clrn = 1'b1;
     end
 
 endmodule
