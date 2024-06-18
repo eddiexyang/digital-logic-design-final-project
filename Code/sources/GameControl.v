@@ -107,8 +107,7 @@ module GameControl(
             score <= score + 1;
             // Generate new block
             blockLanded <= 0;
-            nextBlock <= clk_div % 5;
-            
+            nextBlock <= $urandom % 5;
             currBlockType <= nextBlock;
             currBlockState <= 2'b00;
             currBlockCenterX <= 5;
