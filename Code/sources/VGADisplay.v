@@ -27,8 +27,8 @@ wire [8:0] row_start_addr_next;  // similar as row_start_addr
 wire [9:0] col_start_addr_next;  // similar as col_start_addr
 wire [18:0] addr_background;     // ROM rom_background address according to current scanning pixel (0-307199)
 wire [11:0] data_background;     // rrrr_gggg_bbbb format pixel data in addr_background
-wire [3:0] addr_block;           // ROM rom_block address according to current scanning pixel (0-14^2-1)
-wire [3:0] addr_nextblock;       // same as above    
+wire [18:0] addr_block;          // ROM rom_block address according to current scanning pixel (0-14^2-1)
+wire [18:0] addr_nextblock;      // same as above    
 wire [11:0] data_flash;          // rrrr_gggg_bbbb format pixel data if flashing
 wire [11:0] data_block;          // rrrr_gggg_bbbb format pixel data if block existing
 wire [11:0] data_nextblock;      // same as above
@@ -36,26 +36,26 @@ wire within_blocks;              // 1 for address within blocks
 wire within_nextblocks;          // 1 for address within nextblocks
 wire en_flash;                   // 1 for flash, 0 for no flash
 wire en_block;                   // 1 for block, 0 for no block
-wire en_next_block;              // 1 for next_block, 0 for no next_block
+wire en_nextblock;              // 1 for next_block, 0 for no next_block
 
 assign rd = ~rdn;
 
-assign within_blocks = (row_addr >= 207 && row_addr <= 346) && (col_addr >= 105 && col_addr <= 382);     // (207,105): top left corner pixel addr of blocks, (346,382): bottom right corner pixel addr of blocks
-assign within_nextblocks = (row_addr >= 367 && row_addr <= 422) && (col_addr >= 279 && col_addr <= 306); // same as above
+assign within_blocks = (col_addr >= 207 && col_addr <= 346) && (row_addr >= 105 && row_addr <= 382);     // (207,105): top left corner pixel addr of blocks, (346,382): bottom right corner pixel addr of blocks
+assign within_nextblocks = (col_addr >= 367 && col_addr <= 422) && (row_addr >= 279 && row_addr <= 306); // same as above
 assign row_nextblock = (row_addr - 279) / 14;
 assign col_nextblock = (col_addr - 367) / 14;
 assign index = row_nextblock * 2 + col_nextblock;
 assign row = (row_addr - 105) / 14;                                                                      // one single block has 12 rows with 2 frame rows
 assign col = (col_addr - 207) / 14;                                                                      // one single block has 12 columns with 2 frame columns
-assign row_start_addr = 207 + col * 14;
-assign col_start_addr = 105 + row * 14;
-assign row_start_addr_next = 367 + col_nextblock * 14;
-assign col_start_addr_next = 279 + row_nextblock * 14;                                          
+assign row_start_addr = 105 + row * 14;
+assign col_start_addr = 207 + col * 14;
+assign row_start_addr_next = 279 + row_nextblock * 14;
+assign col_start_addr_next = 367 + col_nextblock * 14;                                          
 assign addr_background = 640 * row_addr + col_addr;
-assign addr_block = (row_addr - row_start_addr) * 14 + (col_addr - col_start_addr);
-assign addr_nextblock = (row_addr - row_start_addr_next) * 14 + (col_addr - col_start_addr_next);
+assign addr_block = addr_background;//(row_addr - row_start_addr) * 14 + (col_addr - col_start_addr);
+assign addr_nextblock = addr_background;//(row_addr - row_start_addr_next) * 14 + (col_addr - col_start_addr_next);
 
-assign en_flash = flash[row * 10 + col];
+assign en_flash = 0;//flash[row * 10 + col];
 assign en_block = objectMatrix[row * 10 + col];                 
 assign en_nextblock = (nextblock == 0 && (index >= 4 && index <= 7)) ||
                       (nextblock == 1 && (index == 0 || index == 1 || index == 4 || index == 5)) ||
@@ -66,7 +66,7 @@ assign en_nextblock = (nextblock == 0 && (index >= 4 && index <= 7)) ||
 
 assign data_flash = 12'b1100_1100_1100;
 
-assign vgac_input = ( within_nextblocks == 1'b1 ) ? ((en_next_block) ? data_nextblock : data_background) :
+assign vgac_input = ( within_nextblocks == 1'b1 ) ? ((en_nextblock) ? data_nextblock : data_background) :
                     ( within_blocks == 1'b0 )     ? data_background :
                     ( en_flash == 1'b1 )          ? data_flash      :
                     ( en_block == 1'b1 )          ? data_block      :
@@ -81,14 +81,14 @@ rom_background rom0(
 
 
 // Instantiate rom_block IP kernel
-rom_block rom1(
+rom_full_tetris rom1(
     .clka(clk),               // input wire clka
     .addra(addr_block),       // input wire [3:0] addra
     .douta(data_block)        // output wire [11:0] douta
 );
 
 // Instantiate rom_nextblock IP kernel
-rom_block rom2(
+rom_full_tetris rom2(
     .clka(clk),               // input wire clka
     .addra(addr_nextblock),   // input wire [3:0] addra
     .douta(data_nextblock)    // output wire [11:0] douta
