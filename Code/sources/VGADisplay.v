@@ -3,6 +3,7 @@ module VGAdisplay(
     input clrn,                 // negative clear signal
     input [2:0] nextblock,      // type of nextblock 
     input [199:0] objectMatrix, // 10*20 14*14 blocks
+    input fail,                 // fail
     output rd,                  // read pixel RAM (active high)
     output hs,
   	output vs,
@@ -31,6 +32,8 @@ wire [18:0] addr_nextblock;      // same as above
 wire [11:0] data_flash;          // rrrr_gggg_bbbb format pixel data if flashing
 wire [11:0] data_block;          // rrrr_gggg_bbbb format pixel data if block existing
 wire [11:0] data_nextblock;      // same as above
+wire [18:0] addr_fail;           // ROM rom_fail address according to current scanning pixel (0-307199)
+wire [11:0] data_fail;           // same as above;
 wire within_blocks;              // 1 for address within blocks
 wire within_nextblocks;          // 1 for address within nextblocks
 wire en_flash;                   // 1 for flash, 0 for no flash
@@ -65,7 +68,8 @@ assign en_nextblock = (nextblock == 0 && (index >= 4 && index <= 7)) ||
 
 assign data_flash = 12'b1100_1100_1100;
 
-assign vgac_input = ( within_nextblocks == 1'b1 ) ? ((en_nextblock) ? data_nextblock : data_background) :
+assign vgac_input = ( fail == 1'b1 )              ? (data_fail)     :           
+                    ( within_nextblocks == 1'b1 ) ? ((en_nextblock) ? data_nextblock : data_background) :
                     ( within_blocks == 1'b0 )     ? data_background :
                     ( en_flash == 1'b1 )          ? data_flash      :
                     ( en_block == 1'b1 )          ? data_block      :
@@ -91,6 +95,13 @@ rom_full_tetris rom2(
     .clka(clk),               // input wire clka
     .addra(addr_nextblock),   // input wire [3:0] addra
     .douta(data_nextblock)    // output wire [11:0] douta
+);
+
+// Instantiate rom_fail IP kernel
+rom_fail rom3(
+    .clka(clk),               // input wire clka
+    .addra(addr_fail),   // input wire [3:0] addra
+    .douta(data_fail)    // output wire [11:0] douta
 );
 
 // Instantiate VGAc module
