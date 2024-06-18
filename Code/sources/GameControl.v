@@ -37,9 +37,9 @@ module GameControl(
 
     // Perform clock division
     reg [31:0] clk_div;
-    reg clk_div_26_prev;
-    reg clk_div_26_curr;
-    reg clk_div_26_posedge;
+    reg clk_div_25_prev;
+    reg clk_div_25_curr;
+    reg clk_div_25_posedge;
 
     always @(posedge clk) begin
         if (rst) begin
@@ -48,13 +48,13 @@ module GameControl(
             clk_div <= clk_div + 1;
         end
 
-        clk_div_26_prev <= clk_div_26_curr;
-        clk_div_26_curr <= clk_div[26];
+        clk_div_25_prev <= clk_div_25_curr;
+        clk_div_25_curr <= clk_div[25];
 
-        if (clk_div_26_curr == 1 && clk_div_26_prev == 0) begin
-            clk_div_26_posedge <= 1;
+        if (clk_div_25_curr == 1 && clk_div_25_prev == 0) begin
+            clk_div_25_posedge <= 1;
         end else begin
-            clk_div_26_posedge <= 0;
+            clk_div_25_posedge <= 0;
         end
     end
 
@@ -117,12 +117,12 @@ module GameControl(
             end else begin
 
                 // Handle block dropping            
-                if (clk_div_26_posedge) begin
+                if (clk_div_25_posedge) begin
                     if (blockLanded) begin
                         score <= score + 1;
                         // Generate new block
                         blockLanded <= 0;
-                        nextBlock <= $urandom % 5;
+                        nextBlock <= clk_div % 5;
                         
                         currBlockType <= nextBlock;
                         currBlockState <= 2'b00;
