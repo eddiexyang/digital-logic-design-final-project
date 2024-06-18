@@ -43,7 +43,7 @@ assign within_blocks = (col_addr >= 208 && col_addr <= 347) && (row_addr >= 105 
 assign within_nextblocks = (col_addr >= 368 && col_addr <= 423) && (row_addr >= 279 && row_addr <= 306); // same as above
 assign row_nextblock = (row_addr - 279) / 14;
 assign col_nextblock = (col_addr - 368) / 14;
-assign index = row_nextblock * 2 + col_nextblock;
+assign index = row_nextblock * 4 + col_nextblock;
 assign row = (row_addr - 105) / 14;                                                                      // one single block has 12 rows with 2 frame rows
 assign col = (col_addr - 208) / 14;                                                                      // one single block has 12 columns with 2 frame columns
 assign row_start_addr = 105 + row * 14;
