@@ -7,9 +7,7 @@ module TopLevelShell(
     output vs,
     output [3:0] r,
     output [3:0] g,
-    output [3:0] b,
-
-    output wire [6:0] maxHeight
+    output [3:0] b
 );
     // Define reset signals
     reg clrn;
@@ -73,8 +71,7 @@ module TopLevelShell(
         .score           (score           ),
         .nextBlock       (nextBlock       ),
         .objects         (objects         ),
-        .fail            (fail            ),
-        .maxHeight       (maxHeight       )
+        .fail            (fail            )
     );
 
     VGAdisplay u_VGAdisplay(

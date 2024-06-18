@@ -5,14 +5,15 @@ module GameControl(
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
     output [199:0] objects,      // 1 for existing object, 0 for empty
-    output reg fail,             // 1 for game over
-    output reg [4:0] maxHeight
+    output reg fail              // 1 for game over
 );
-    // Here we use 24x10 registers to store the 20x10 game board
-    // the 4 extra rows at top and 1 extra row at bottom
-    // are used for block generation and landing detection
-    reg objectReg [24:0][9:0];
-    // reg [4:0] maxHeight;
+    // Here we use 25x12 registers to store the 20x10 game board
+    // 
+    // the 4 extra rows at top are used for block generation
+    //
+    // 1 extra row at bottom and 2 extra columns at both sides
+    // are used for collision detection
+    reg objectReg [24:0][11:0];
 
     reg [2:0] currBlockType;
     reg [1:0] currBlockState;
@@ -21,12 +22,15 @@ module GameControl(
     reg [1:0] prevBlockState;
     reg [3:0] prevBlockCenterX;
     reg [4:0] prevBlockCenterY;
+    reg signed [2:0] coordOffsetX [4:0][3:0][2:0]; // Indices: blockType, blockState, blockNumber
+    reg signed [2:0] coordOffsetY [4:0][3:0][2:0];
+    
+    reg gameStartSign = 0;
+    reg [4:0] blockMaxHeight;
+    reg [4:0] gameMaxHeight;
 
-    reg [4:0] i = 0;
-    reg [3:0] j = 0;
-    reg rotateSign = 0;
-    reg moveLeftSign = 0;
-    reg moveRightSign = 0;
+    reg dropSign = 0;
+    reg checkPositionSign = 0;
     reg updateBlockPositionSign = 0;
     reg drawCurrentBlockSign = 0;
     reg checkBlockLandedSign = 0;
@@ -35,55 +39,130 @@ module GameControl(
 
     reg [4:0] rowSum = 0;
     reg executeFail = 0;
-    integer row, coln, p, q, r;
+    integer i, j, row, coln, p, q, r;
 
     // Perform clock division
     reg [31:0] clk_div;
-    reg clk_div_25_prev;
-    reg clk_div_25_curr;
-    reg clk_div_25_posedge;
-    reg clk_div_22_prev;
-    reg clk_div_22_curr;
-    reg clk_div_22_posedge;
-
+    reg [31:0] clk_div_prev;
+    wire [31:0] clk_div_posedge;
     always @(posedge clk) begin
         if (rst) begin
             clk_div <= 0;
         end else begin
             clk_div <= clk_div + 1;
+            clk_div_prev <= clk_div;
         end
+    end
+    genvar div;
+    generate
+        for (div = 0; div < 32; div = div + 1) begin
+            assign clk_div_posedge[div] = clk_div[div] && ~clk_div_prev[div];
+        end
+    endgenerate
 
-        clk_div_25_prev <= clk_div_25_curr;
-        clk_div_25_curr <= clk_div[25];
-        if (clk_div_25_curr == 1 && clk_div_25_prev == 0) begin
-            clk_div_25_posedge <= 1;
-        end else begin
-            clk_div_25_posedge <= 0;
+    initial begin
+        // Fill the game board with 1s
+        for (i = 0; i <= 24; i = i + 1) begin
+            for (j = 0; j <= 11; j = j + 1) begin
+                objectReg[i][j] = 0;
+            end
         end
-
-        clk_div_22_prev <= clk_div_22_curr;
-        clk_div_22_curr <= clk_div[22];
-        if (clk_div_22_curr == 1 && clk_div_22_prev == 0) begin
-            clk_div_22_posedge <= 1;
-        end else begin
-            clk_div_22_posedge <= 0;
-        end
+        // Initialize the block generation offsets
+        // Block type 0, block state 0
+        coordOffsetX[0][0][0] = -2; coordOffsetY[0][0][0] =  0;
+        coordOffsetX[0][0][1] = -1; coordOffsetY[0][0][1] =  0;
+        coordOffsetX[0][0][2] =  1; coordOffsetY[0][0][2] =  0;
+        // Block type 0, block state 1
+        coordOffsetX[0][1][0] =  0; coordOffsetY[0][1][0] = -2;
+        coordOffsetX[0][1][1] =  0; coordOffsetY[0][1][1] = -1;
+        coordOffsetX[0][1][2] =  0; coordOffsetY[0][1][2] =  1;
+        // Block type 0, block state 2
+        coordOffsetX[0][2][0] = -2; coordOffsetY[0][2][0] =  0;
+        coordOffsetX[0][2][1] = -1; coordOffsetY[0][2][1] =  0;
+        coordOffsetX[0][2][2] =  1; coordOffsetY[0][2][2] =  0;
+        // Block type 0, block state 3
+        coordOffsetX[0][3][0] =  0; coordOffsetY[0][3][0] = -2;
+        coordOffsetX[0][3][1] =  0; coordOffsetY[0][3][1] = -1;
+        coordOffsetX[0][3][2] =  0; coordOffsetY[0][3][2] =  1;
+        // Block type 1, block state 0
+        coordOffsetX[1][0][0] =  0; coordOffsetY[1][0][0] = -1;
+        coordOffsetX[1][0][1] =  1; coordOffsetY[1][0][1] = -1;
+        coordOffsetX[1][0][2] =  1; coordOffsetY[1][0][2] =  0;
+        // Block type 1, block state 1
+        coordOffsetX[1][0][0] =  0; coordOffsetY[1][0][0] = -1;
+        coordOffsetX[1][0][1] =  1; coordOffsetY[1][0][1] = -1;
+        coordOffsetX[1][0][2] =  1; coordOffsetY[1][0][2] =  0;
+        // Block type 1, block state 2
+        coordOffsetX[1][0][0] =  0; coordOffsetY[1][0][0] = -1;
+        coordOffsetX[1][0][1] =  1; coordOffsetY[1][0][1] = -1;
+        coordOffsetX[1][0][2] =  1; coordOffsetY[1][0][2] =  0;
+        // Block type 1, block state 3
+        coordOffsetX[1][0][0] =  0; coordOffsetY[1][0][0] = -1;
+        coordOffsetX[1][0][1] =  1; coordOffsetY[1][0][1] = -1;
+        coordOffsetX[1][0][2] =  1; coordOffsetY[1][0][2] =  0;
+        // Block type 2, block state 0
+        coordOffsetX[2][0][0] = -1; coordOffsetY[2][0][0] =  0;
+        coordOffsetX[2][0][1] =  0; coordOffsetY[2][0][1] = -1;
+        coordOffsetX[2][0][2] =  1; coordOffsetY[2][0][2] =  0;
+        // Block type 2, block state 1
+        coordOffsetX[2][1][0] =  0; coordOffsetY[2][1][0] = -1;
+        coordOffsetX[2][1][1] =  1; coordOffsetY[2][1][1] =  0;
+        coordOffsetX[2][1][2] =  0; coordOffsetY[2][1][2] =  1;
+        // Block type 2, block state 2
+        coordOffsetX[2][2][0] = -1; coordOffsetY[2][2][0] =  0;
+        coordOffsetX[2][2][1] =  0; coordOffsetY[2][2][1] =  1;
+        coordOffsetX[2][2][2] =  1; coordOffsetY[2][2][2] =  0;
+        // Block type 2, block state 3
+        coordOffsetX[2][3][0] =  0; coordOffsetY[2][3][0] = -1;
+        coordOffsetX[2][3][1] = -1; coordOffsetY[2][3][1] =  0;
+        coordOffsetX[2][3][2] =  0; coordOffsetY[2][3][2] =  1;
+        // Block type 3, block state 0
+        coordOffsetX[3][0][0] = -1; coordOffsetY[3][0][0] =  0;
+        coordOffsetX[3][0][1] =  1; coordOffsetY[3][0][1] =  0;
+        coordOffsetX[3][0][2] =  1; coordOffsetY[3][0][2] = -1;
+        // Block type 3, block state 1
+        coordOffsetX[3][1][0] =  0; coordOffsetY[3][1][0] = -1;
+        coordOffsetX[3][1][1] =  0; coordOffsetY[3][1][1] =  1;
+        coordOffsetX[3][1][2] =  1; coordOffsetY[3][1][2] =  1;
+        // Block type 3, block state 2
+        coordOffsetX[3][2][0] = -1; coordOffsetY[3][2][0] =  1;
+        coordOffsetX[3][2][1] = -1; coordOffsetY[3][2][1] =  0;
+        coordOffsetX[3][2][2] =  1; coordOffsetY[3][2][2] =  0;
+        // Block type 3, block state 3
+        coordOffsetX[3][3][0] = -1; coordOffsetY[3][3][0] = -1;
+        coordOffsetX[3][3][1] =  0; coordOffsetY[3][3][1] = -1;
+        coordOffsetX[3][3][2] =  0; coordOffsetY[3][3][2] =  1;
+        // Block type 4, block state 0
+        coordOffsetX[4][0][0] = -1; coordOffsetY[4][0][0] =  0;
+        coordOffsetX[4][0][1] =  0; coordOffsetY[4][0][1] = -1;
+        coordOffsetX[4][0][2] =  1; coordOffsetY[4][0][2] = -1;
+        // Block type 4, block state 1
+        coordOffsetX[4][1][0] = -1; coordOffsetY[4][1][0] = -1;
+        coordOffsetX[4][1][1] = -1; coordOffsetY[4][1][1] =  0;
+        coordOffsetX[4][1][2] =  0; coordOffsetY[4][1][2] =  1;
+        // Block type 4, block state 2
+        coordOffsetX[4][2][0] = -1; coordOffsetY[4][2][0] = -1;
+        coordOffsetX[4][2][1] =  0; coordOffsetY[4][2][1] = -1;
+        coordOffsetX[4][2][2] =  1; coordOffsetY[4][2][2] =  0;
+        // Block type 4, block state 3
+        coordOffsetX[4][3][0] =  0; coordOffsetY[4][3][0] = -1;
+        coordOffsetX[4][3][1] = -1; coordOffsetY[4][3][1] =  0;
+        coordOffsetX[4][3][2] = -1; coordOffsetY[4][3][2] =  1;
     end
 
     // #################################
     // # Main Tetris logic starts here #
     // #################################
 
-    reg rstReg = 0;
     always @(posedge clk) begin
         // Handle reset signal
         if (rst) begin
-            rstReg <= 1;
-            score <= 7'b0;
-            nextBlock <= 3'b0;
-            maxHeight <= 0;
-            fail <= 0;
-            blockLanded <= 0;
+            for (i = 0; i <= 23; i = i + 1) begin
+                for (j = 1; j <= 10; j = j + 1) begin
+                    objectReg[i][j] <= 0;
+                end
+            end
+            gameStartSign = 1;
 
             currBlockType <= 3'b0;
             currBlockState <= 2'b0;
@@ -91,615 +170,168 @@ module GameControl(
             currBlockCenterY <= 2;
             prevBlockState <= 2'b0;
             prevBlockCenterX <= 5;
-            updateBlockPositionSign <= 0;
-
-            objectReg[24][0] <= 1;
-            objectReg[24][1] <= 1;
-            objectReg[24][2] <= 1;
-            objectReg[24][3] <= 1;
-            objectReg[24][4] <= 1;
-            objectReg[24][5] <= 1;
-            objectReg[24][6] <= 1;
-            objectReg[24][7] <= 1;
-            objectReg[24][8] <= 1;
-            objectReg[24][9] <= 1;
-
-            i <= 0;
-            j <= 0;
-        end else if (rstReg) begin
-            objectReg[i][j] <= 0;
-            if (i == 23 && j == 9) begin
-                i <= 0;
-                j <= 0;
-                rstReg <= 0;
-            end else if (j == 9) begin
-                i <= i + 1;
-                j <= 0;
-            end else begin
-                j <= j + 1;
-            end
-        end else begin
-            // Handle keyboard signal
-            if (keyboard_signal == 3'b101) begin
-                moveLeftSign <= 1;
-            end else if (keyboard_signal == 3'b110) begin
-                moveRightSign <= 1;
-            end else if (keyboard_signal == 3'b111) begin
-                rotateSign <= 1;
-            end else begin
-                // Handle block dropping            
-                if (~fail && ~executeFail && (clk_div_25_posedge || keyboard_signal == 3'b100)) begin
-                    if (blockLanded) begin
-                        score <= score + 1;
-                        // Generate new block
-                        blockLanded <= 0;
-                        nextBlock <= clk_div % 5;
-
-                        currBlockType <= nextBlock;
-                        currBlockState <= 2'b00;
-                        currBlockCenterX <= 5;
-                        currBlockCenterY <= 2;
-                        prevBlockState <= 2'b00;
-                        prevBlockCenterX <= 5;
-                        prevBlockCenterY <= 2;
-
-                        updateBlockPositionSign <= 1;
-                    end else begin
-                        // Move block down
-                        prevBlockState <= currBlockState;
-                        prevBlockCenterX <= currBlockCenterX;
-                        prevBlockCenterY <= currBlockCenterY;
-                        currBlockCenterY <= currBlockCenterY + 1;
-                        updateBlockPositionSign <= 1;
-                    end
-                end
+            prevBlockCenterY <= 2;
             
-                // Handle block left-moving
-                if (~fail && ~executeFail && moveLeftSign) begin
-                    moveLeftSign <= 0;
-                    // Border detection
-                    if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX >= 3 ||
-                        currBlockType == 3'b000 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
-                        currBlockType == 3'b000 && currBlockState == 2'b10 && currBlockCenterX >= 3 ||
-                        currBlockType == 3'b000 && currBlockState == 2'b11 && currBlockCenterX >= 1 ||
+            checkPositionSign <= 0;
+            updateBlockPositionSign <= 0;
+            drawCurrentBlockSign <= 0;
+            checkBlockLandedSign <= 0;
+            eliminateRowSign <= 0;
+            blockLanded <= 0;
 
-                        currBlockType == 3'b001 && currBlockState == 2'b00 && currBlockCenterX >= 1 ||
-                        currBlockType == 3'b001 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
-                        currBlockType == 3'b001 && currBlockState == 2'b10 && currBlockCenterX >= 1 ||
-                        currBlockType == 3'b001 && currBlockState == 2'b11 && currBlockCenterX >= 1 ||
-
-                        currBlockType == 3'b010 && currBlockState == 2'b00 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b010 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
-                        currBlockType == 3'b010 && currBlockState == 2'b10 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b010 && currBlockState == 2'b11 && currBlockCenterX >= 2 ||
-                        
-                        currBlockType == 3'b011 && currBlockState == 2'b00 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b011 && currBlockState == 2'b01 && currBlockCenterX >= 1 ||
-                        currBlockType == 3'b011 && currBlockState == 2'b10 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b011 && currBlockState == 2'b11 && currBlockCenterX >= 2 ||
-                        
-                        currBlockType == 3'b100 && currBlockState == 2'b00 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b100 && currBlockState == 2'b01 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b100 && currBlockState == 2'b10 && currBlockCenterX >= 2 ||
-                        currBlockType == 3'b100 && currBlockState == 2'b11 && currBlockCenterX >= 2 
-                    ) begin
-                        currBlockCenterX <= currBlockCenterX - 1;
-                        prevBlockCenterX <= currBlockCenterX;
-                        prevBlockCenterY <= currBlockCenterY;
-                        prevBlockState <= currBlockState;
-                        updateBlockPositionSign <= 1;
-                    end
-                end
-
-                // Handle block right-moving
-                if (~fail && ~executeFail && moveRightSign) begin
-                    moveRightSign <= 0;
-                    // Border detection
-                    if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b000 && currBlockState == 2'b01 && currBlockCenterX <= 8 ||
-                        currBlockType == 3'b000 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b000 && currBlockState == 2'b11 && currBlockCenterX <= 8 ||
-
-                        currBlockType == 3'b001 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b001 && currBlockState == 2'b01 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b001 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b001 && currBlockState == 2'b11 && currBlockCenterX <= 7 ||
-
-                        currBlockType == 3'b010 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b010 && currBlockState == 2'b01 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b010 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b010 && currBlockState == 2'b11 && currBlockCenterX <= 8 ||
-                        
-                        currBlockType == 3'b011 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b011 && currBlockState == 2'b01 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b011 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b011 && currBlockState == 2'b11 && currBlockCenterX <= 8 ||
-                        
-                        currBlockType == 3'b100 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b100 && currBlockState == 2'b01 && currBlockCenterX <= 8 ||
-                        currBlockType == 3'b100 && currBlockState == 2'b10 && currBlockCenterX <= 7 ||
-                        currBlockType == 3'b100 && currBlockState == 2'b11 && currBlockCenterX <= 8 
-                    ) begin
-                        currBlockCenterX <= currBlockCenterX + 1;
-                        prevBlockCenterX <= currBlockCenterX;
-                        prevBlockCenterY <= currBlockCenterY;
-                        prevBlockState <= currBlockState;
-                        updateBlockPositionSign <= 1;
-                    end
-                end
-
-                // Handle block rotation
-                if (~fail && ~executeFail && rotateSign) begin
-                    rotateSign <= 0;
-                    currBlockState <= currBlockState + 1;
+            score <= 7'b0;
+            nextBlock <= 3'b0;
+            fail <= 0;
+            gameMaxHeight <= 0;
+        end else if (gameStartSign && ~fail) begin
+            // Handle block dropping            
+            if (~executeFail && (clk_div_posedge[25] || keyboard_signal == 3'b100)) begin
+                if (blockLanded) begin
+                    blockLanded <= 0;
+                    score <= score + 1;
+                    // Generate new block
+                    nextBlock <= clk_div % 5;
+                    currBlockType <= nextBlock;
+                    currBlockState <= 2'b00;
+                    currBlockCenterX <= 5;
+                    currBlockCenterY <= 2;
+                end else begin
+                    // Move block down
+                    checkBlockLandedSign <= 1;
+                    dropSign <= 1;
+                    currBlockCenterY <= currBlockCenterY + 1;
                     prevBlockState <= currBlockState;
                     prevBlockCenterX <= currBlockCenterX;
                     prevBlockCenterY <= currBlockCenterY;
+                end
+            end
+        
+            // Handle block left-moving
+            if (~executeFail && keyboard_signal == 3'b101) begin
+                checkPositionSign <= 1;
+                currBlockCenterX <= currBlockCenterX - 1;
+                prevBlockCenterX <= currBlockCenterX;
+                prevBlockCenterY <= currBlockCenterY;
+                prevBlockState <= currBlockState;
+            end
+
+            // Handle block right-moving
+            if (~executeFail && keyboard_signal == 3'b110) begin
+                checkPositionSign <= 1;
+                currBlockCenterX <= currBlockCenterX + 1;
+                prevBlockCenterX <= currBlockCenterX;
+                prevBlockCenterY <= currBlockCenterY;
+                prevBlockState <= currBlockState;
+            end
+
+            // Handle block rotation
+            if (~executeFail && keyboard_signal == 3'b111) begin
+                checkPositionSign <= 1;
+                currBlockState <= currBlockState + 1;
+                prevBlockCenterX <= currBlockCenterX;
+                prevBlockCenterY <= currBlockCenterY;
+                prevBlockState <= currBlockState;
+            end
+
+            // Check block position
+            if (~executeFail && checkPositionSign) begin
+                checkPositionSign <= 0;
+                if (objectReg[currBlockCenterY][currBlockCenterX] ||
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] ||
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] ||
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]]
+                ) begin
+                    currBlockCenterX <= prevBlockCenterX;
+                    currBlockCenterY <= prevBlockCenterY;
+                    currBlockState <= prevBlockState;
+                    if (dropSign) begin
+                        blockLanded <= 1;
+                        dropSign <= 0;
+                        eliminateRowSign <= 1;
+                    end
+                end else begin
                     updateBlockPositionSign <= 1;
                 end
+            end
 
-                // Update block position and handle block landing
-                // Erase the previous block
-                if (~fail && ~executeFail && updateBlockPositionSign) begin
-                    updateBlockPositionSign <= 0;
-                    drawCurrentBlockSign <= 1;
-                    case (currBlockType)
-                        3'b000: begin
-                            case (prevBlockState)
-                                2'b00, 2'b10: begin
-                                    objectReg[prevBlockCenterY][prevBlockCenterX - 2] <= 0;
-                                    objectReg[prevBlockCenterY][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY][prevBlockCenterX + 1] <= 0;
-                                end
-                                2'b01, 2'b11: begin
-                                    objectReg[prevBlockCenterY - 2][prevBlockCenterX] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX] <= 0;
-                                end
-                            endcase
-                        end
-                        3'b001: begin
-                            objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                            objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                            objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                            objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                        end
-                        3'b010: begin
-                            case (prevBlockState)
-                                2'b00: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                end
-                                2'b01: begin
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                                end
-                                2'b10: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
-                                end
-                                2'b11: begin
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                end
-                            endcase
-                        end
-                        3'b011: begin
-                            case (prevBlockState)
-                                2'b00: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX + 1] <= 0;
-                                end
-                                2'b01: begin
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX + 1] <= 0;
-                                end
-                                2'b10: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX - 1] <= 0;
-                                end
-                                2'b11: begin
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX - 1] <= 0;
-                                end
-                            endcase
-                        end
-                        3'b100: begin
-                            case (prevBlockState)
-                                2'b00: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX + 1] <= 0;
-                                end
-                                2'b01: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX    ] <= 0;
-                                end
-                                2'b10: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX + 1] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                end
-                                2'b11: begin
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY    ][prevBlockCenterX - 1] <= 0;
-                                    objectReg[prevBlockCenterY - 1][prevBlockCenterX    ] <= 0;
-                                    objectReg[prevBlockCenterY + 1][prevBlockCenterX - 1] <= 0;
-                                end
-                            endcase
-                        end
-                    endcase
-                end
-
-                // Draw the current block
-                if (~fail && ~executeFail && drawCurrentBlockSign) begin
-                    checkBlockLandedSign <= 1;
-                    drawCurrentBlockSign <= 0;
-                    case (currBlockType)
-                        3'b000: begin
-                            case(currBlockState)
-                                2'b00, 2'b10: begin
-                                    objectReg[currBlockCenterY][currBlockCenterX - 2] <= 1;
-                                    objectReg[currBlockCenterY][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY][currBlockCenterX + 1] <= 1;
-                                end
-                                2'b01, 2'b11: begin
-                                    objectReg[currBlockCenterY - 2][currBlockCenterX] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX] <= 1;
-                                end
-                            endcase
-                        end
-                        3'b001: begin
-                            objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                            objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
-                            objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                            objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                        end
-                        3'b010: begin
-                            case(currBlockState)
-                                2'b00: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                end
-                                2'b01: begin
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                                end
-                                2'b10: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
-                                end
-                                2'b11: begin
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                end
-                            endcase
-                        end
-                        3'b011: begin
-                            case(currBlockState)
-                                2'b00: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
-                                end
-                                2'b01: begin
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX + 1] <= 1;
-                                end
-                                2'b10: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX - 1] <= 1;
-                                end
-                                2'b11: begin
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
-                                end
-                            endcase
-                        end
-                        3'b100: begin
-                            case(currBlockState)
-                                2'b00: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
-                                end
-                                2'b01: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX    ] <= 1;
-                                end
-                                2'b10: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                end
-                                2'b11: begin
-                                    objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
-                                    objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                                    objectReg[currBlockCenterY + 1][currBlockCenterX - 1] <= 1;
-                                end
-                            endcase
-                        end
-                    endcase
-                end
-
-                // Check if the block has landed
-                if (~fail && ~executeFail && checkBlockLandedSign) begin
-                    checkBlockLandedSign <= 0;
-                    eliminateRowSign <= 1;
-                    case (currBlockType)
-                        3'b000: begin
-                            case (currBlockState)
-                                2'b00, 2'b10: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 2] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - currBlockCenterY > maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b01, 2'b11: begin
-                                    if (objectReg[currBlockCenterY + 2][currBlockCenterX] == 1) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 2) > maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                            endcase
-                        end
-                        3'b001: begin
-                            if (objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                            ) begin
-                                blockLanded <= 1;
-                                if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                    maxHeight <= 24 - currBlockCenterY;
-                                end
-                            end
-                        end
-                        3'b010: begin
-                            case (currBlockState)
-                                2'b00: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b01: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1 ||
-                                        objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b10: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - currBlockCenterY > maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b11: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                            endcase
-                        end
-                        3'b011: begin
-                            case (currBlockState)
-                                2'b00: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b01: begin
-                                    if (objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 2][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b10: begin
-                                    if (objectReg[currBlockCenterY + 2][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - currBlockCenterY > maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b11: begin
-                                    if (objectReg[currBlockCenterY    ][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                            endcase
-                        end
-                        3'b100: begin
-                            case (currBlockState)
-                                2'b00: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY    ][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b01: begin
-                                    if (objectReg[currBlockCenterY + 1][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 2][currBlockCenterX    ] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b10: begin
-                                    if (objectReg[currBlockCenterY    ][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX + 1] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                                2'b11: begin
-                                    if (objectReg[currBlockCenterY + 2][currBlockCenterX - 1] == 1 ||
-                                        objectReg[currBlockCenterY + 1][currBlockCenterX    ] == 1
-                                    ) begin
-                                        blockLanded <= 1;
-                                        if (24 - (currBlockCenterY - 1)> maxHeight) begin
-                                            maxHeight <= 24 - currBlockCenterY;
-                                        end
-                                    end
-                                end
-                            endcase
-                        end
-                    endcase
-                end
-
-                // Eliminate the full rows
-                if (~fail && ~executeFail && eliminateRowSign) begin
-                    for (row = 4; row < 24; row = row + 1) begin
-                        rowSum = 0;
-                        for (coln = 0; coln < 10; coln = coln + 1) begin
-                            rowSum = rowSum + objectReg[row][coln];
-                        end
-                        if (rowSum == 10) begin
-                            // Eliminate the row
-                            for (p = row; p > 4; p = p - 1) begin
-                                for (q = 0; q < 10; q = q + 1) begin
-                                    objectReg[p][q] = objectReg[p - 1][q];
-                                end
-                            end
-                            // Clear the top row
-                            for (r = 0; r < 10; r = r + 1) begin
-                                objectReg[4][r] = 0;
-                            end
-                            // Update the score
-                            score = score + 10;
-                        end
+            // Update block position and handle block landing
+            // Erase the previous block
+            if (~executeFail && updateBlockPositionSign) begin
+                updateBlockPositionSign = 0;
+                objectReg[prevBlockCenterY][prevBlockCenterX] = 0;
+                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][0]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][0]] = 0;
+                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][1]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][1]] = 0;
+                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][2]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][2]] = 0;
+                objectReg[currBlockCenterY][currBlockCenterX] = 1;
+                objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] = 1;
+                objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] = 1;
+                objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]] = 1;
+                
+                blockMaxHeight = 24 - currBlockCenterY;
+                for (i = 0; i < 3; i = i + 1) begin
+                    if (24 - (currBlockCenterY + coordOffsetY[currBlockType][currBlockState][i]) > blockMaxHeight) begin
+                        blockMaxHeight = 24 - (currBlockCenterY + coordOffsetY[currBlockType][currBlockState][i]);
                     end
-                    eliminateRowSign = 0;
                 end
+                if (blockMaxHeight > gameMaxHeight) begin
+                    gameMaxHeight = blockMaxHeight;
+                end
+            end
 
-                // Detect game failure
-                if (~fail && (executeFail || maxHeight >= 20)) begin
-                    executeFail <= 1;
-                    if (executeFail == 0) begin
-                        row <= 23;
-                        coln <= 0;
-                    end else if (row == 4 && coln == 9) begin
-                        objectReg[row][coln] <= 1;
-                        fail <= 1;
-                        executeFail <= 0;
-                    end else if (coln == 9 && clk_div_22_posedge) begin
-                        objectReg[row][coln] <= 1;
-                        row <= row - 1;
-                        coln <= 0;
-                    end else if (coln != 9)begin
-                        objectReg[row][coln] <= 1;
-                        coln <= coln + 1;
+            // Eliminate the full rows
+            if (~executeFail && eliminateRowSign) begin
+                for (row = 4; row < 24; row = row + 1) begin
+                    rowSum = 0;
+                    for (coln = 0; coln < 10; coln = coln + 1) begin
+                        rowSum = rowSum + objectReg[row][coln];
                     end
-                end // End failure animation
-            end // End keyboard if
-        end // End rst if
-    end // End always
+                    if (rowSum == 10) begin
+                        // Eliminate the row
+                        for (p = row; p > 4; p = p - 1) begin
+                            for (q = 0; q < 10; q = q + 1) begin
+                                objectReg[p][q] = objectReg[p - 1][q];
+                            end
+                        end
+                        // Clear the top row
+                        for (r = 0; r < 10; r = r + 1) begin
+                            objectReg[4][r] = 0;
+                        end
+                        // Update the score
+                        score = score + 10;
+                    end
+                end
+                eliminateRowSign = 0;
+            end
+
+            // Detect game failure
+            if (executeFail || gameMaxHeight >= 20) begin
+                executeFail <= 1;
+                if (executeFail == 0) begin
+                    row <= 23;
+                    coln <= 1;
+                end else if (row == 4 && coln == 10) begin
+                    objectReg[row][coln] <= 1;
+                    fail <= 1;
+                    executeFail <= 0;
+                end else if (coln == 10 && clk_div_posedge[22]) begin
+                    objectReg[row][coln] <= 1;
+                    row <= row - 1;
+                    coln <= 0;
+                end else if (coln != 10)begin
+                    objectReg[row][coln] <= 1;
+                    coln <= coln + 1;
+                end
+            end
+        end
+    end
 
     // Map 2-d registers to 1-d signal lines
-    genvar k;
+    genvar k, l;
     generate
-        for (k = 0; k < 200; k = k + 1) begin: map
-            assign objects[k] = objectReg[k / 10 + 4][k % 10];
+        for (k = 4; k <= 23; k = k + 1) begin: map
+            for (l = 1; l <= 10; l = l + 1) begin
+                assign objects[10 * (k - 4) + l - 1] = objectReg[k][l];
+            end
         end
     endgenerate
     
