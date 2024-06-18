@@ -14,11 +14,6 @@ module TopLevelShell(
     wire rst;
     assign rst = ~clrn;
     
-    always @(posedge down) begin
-        clrn = 0;
-        #100 clrn = 1;
-    end
-
     // Handle keyboard definitions
     wire left, right, down, up;
     reg [1:0] keyboard_signal;
@@ -34,6 +29,11 @@ module TopLevelShell(
         end
     end
 
+    always @(posedge down) begin
+        clrn = 0;
+        #100 clrn = 1;
+    end
+    
     // Define game signals
     wire [6:0] score;
     wire [2:0] nextBlock;
