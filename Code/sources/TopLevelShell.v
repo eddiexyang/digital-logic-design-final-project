@@ -76,7 +76,7 @@ module TopLevelShell(
 
     VGAdisplay u_VGAdisplay(
         .clk          (clk_div[1]   ),
-        .clrn         (clrn         ),
+        .clrn         (1            ),
         .nextblock    (nextBlock    ),
         .objectMatrix (objects      ),
         .hs           (hs           ),
