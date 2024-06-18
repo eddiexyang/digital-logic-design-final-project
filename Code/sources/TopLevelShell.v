@@ -7,7 +7,9 @@ module TopLevelShell(
     output vs,
     output [3:0] r,
     output [3:0] g,
-    output [3:0] b
+    output [3:0] b,
+
+    output wire [6:0] maxHeight
 );
     // Define reset signals
     reg clrn;
@@ -17,8 +19,8 @@ module TopLevelShell(
     // Handle keyboard definitions
     wire left, right, down, up, space;
     reg [2:0] keyboard_signal;
-    always @(left, right, up, space) begin
-        if (space) begin
+    always @(left, right, up, down) begin
+        if (down) begin
             keyboard_signal <= 3'b100;
         end else if (left) begin
             keyboard_signal <= 3'b101;
@@ -71,7 +73,8 @@ module TopLevelShell(
         .score           (score           ),
         .nextBlock       (nextBlock       ),
         .objects         (objects         ),
-        .fail            (fail            )
+        .fail            (fail            ),
+        .maxHeight       (maxHeight       )
     );
 
     VGAdisplay u_VGAdisplay(

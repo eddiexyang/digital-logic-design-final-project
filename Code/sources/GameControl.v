@@ -5,13 +5,14 @@ module GameControl(
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
     output [199:0] objects,      // 1 for existing object, 0 for empty
-    output reg fail              // 1 for game over
+    output reg fail,             // 1 for game over
+    output reg [4:0] maxHeight
 );
     // Here we use 24x10 registers to store the 20x10 game board
     // the 4 extra rows at top and 1 extra row at bottom
     // are used for block generation and landing detection
     reg objectReg [24:0][9:0];
-    reg [4:0] maxHeight;
+    // reg [4:0] maxHeight;
 
     reg [2:0] currBlockType;
     reg [1:0] currBlockState;
@@ -127,13 +128,13 @@ module GameControl(
                 rotateSign <= 1;
             end else begin
                 // Handle block dropping            
-                if (~fail && (clk_div_25_posedge || keyboard_signal == 3'b100)) begin
+                if (~fail && ~executeFail && (clk_div_25_posedge || keyboard_signal == 3'b100)) begin
                     if (blockLanded) begin
                         score <= score + 1;
                         // Generate new block
                         blockLanded <= 0;
                         nextBlock <= clk_div % 5;
-                        
+
                         currBlockType <= nextBlock;
                         currBlockState <= 2'b00;
                         currBlockCenterX <= 5;
@@ -154,7 +155,7 @@ module GameControl(
                 end
             
                 // Handle block left-moving
-                if (~fail && moveLeftSign) begin
+                if (~fail && ~executeFail && moveLeftSign) begin
                     moveLeftSign <= 0;
                     // Border detection
                     if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX >= 3 ||
@@ -191,7 +192,7 @@ module GameControl(
                 end
 
                 // Handle block right-moving
-                if (~fail && moveRightSign) begin
+                if (~fail && ~executeFail && moveRightSign) begin
                     moveRightSign <= 0;
                     // Border detection
                     if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
@@ -228,7 +229,7 @@ module GameControl(
                 end
 
                 // Handle block rotation
-                if (~fail && rotateSign) begin
+                if (~fail && ~executeFail && rotateSign) begin
                     rotateSign <= 0;
                     currBlockState <= currBlockState + 1;
                     prevBlockState <= currBlockState;
@@ -239,7 +240,7 @@ module GameControl(
 
                 // Update block position and handle block landing
                 // Erase the previous block
-                if (~fail && updateBlockPositionSign) begin
+                if (~fail && ~executeFail && updateBlockPositionSign) begin
                     updateBlockPositionSign <= 0;
                     drawCurrentBlockSign <= 1;
                     case (currBlockType)
@@ -353,7 +354,7 @@ module GameControl(
                 end
 
                 // Draw the current block
-                if (~fail && drawCurrentBlockSign) begin
+                if (~fail && ~executeFail && drawCurrentBlockSign) begin
                     checkBlockLandedSign <= 1;
                     drawCurrentBlockSign <= 0;
                     case (currBlockType)
@@ -374,9 +375,9 @@ module GameControl(
                             endcase
                         end
                         3'b001: begin
-                            objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
+                            objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
                             objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
-                            objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
+                            objectReg[currBlockCenterY    ][currBlockCenterX    ] <= 1;
                             objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
                         end
                         3'b010: begin
@@ -467,7 +468,7 @@ module GameControl(
                 end
 
                 // Check if the block has landed
-                if (~fail && checkBlockLandedSign) begin
+                if (~fail && ~executeFail && checkBlockLandedSign) begin
                     checkBlockLandedSign <= 0;
                     eliminateRowSign <= 1;
                     case (currBlockType)
@@ -647,7 +648,7 @@ module GameControl(
                 end
 
                 // Eliminate the full rows
-                if (~fail && eliminateRowSign) begin
+                if (~fail && ~executeFail && eliminateRowSign) begin
                     for (row = 4; row < 24; row = row + 1) begin
                         rowSum = 0;
                         for (coln = 0; coln < 10; coln = coln + 1) begin
