@@ -31,4 +31,4 @@ def bmp_to_coe(input_path, output_path):
                 else:
                     file.write(hex_str + ',\n')
 
-bmp_to_coe('block.bmp', 'block.coe')
+bmp_to_coe('Tetris.bmp', 'Tetris.coe')
