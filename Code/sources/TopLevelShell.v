@@ -15,23 +15,25 @@ module TopLevelShell(
     assign rst = ~clrn;
     
     // Handle keyboard definitions
-    wire left, right, down, up;
-    reg [1:0] keyboard_signal;
-    always @(left, right, up) begin
-        if (left) begin
-            keyboard_signal <= 2'b01;
+    wire left, right, down, up, space;
+    reg [2:0] keyboard_signal;
+    always @(left, right, up, space) begin
+        if (space) begin
+            keyboard_signal <= 3'b100;
+        end else if (left) begin
+            keyboard_signal <= 3'b101;
         end else if (right) begin
-            keyboard_signal <= 2'b10;
+            keyboard_signal <= 3'b110;
         end else if (up) begin
-            keyboard_signal <= 2'b11;
+            keyboard_signal <= 3'b111;
         end else begin
-            keyboard_signal <= 2'b00;
+            keyboard_signal <= 3'b000;
         end
     end
 
     // Handle reset signal from keyboard
     always @(posedge clk) begin
-        if (down) begin
+        if (space) begin
             clrn <= 1'b0;
         end else begin
             clrn <= 1'b1;
