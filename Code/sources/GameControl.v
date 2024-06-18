@@ -33,6 +33,7 @@ module GameControl(
     reg blockLanded = 0;
 
     reg [4:0] rowSum = 0;
+    reg executeFail = 0;
     integer row, coln, p, q, r;
 
     // Perform clock division
@@ -40,6 +41,9 @@ module GameControl(
     reg clk_div_25_prev;
     reg clk_div_25_curr;
     reg clk_div_25_posedge;
+    reg clk_div_22_prev;
+    reg clk_div_22_curr;
+    reg clk_div_22_posedge;
 
     always @(posedge clk) begin
         if (rst) begin
@@ -50,11 +54,18 @@ module GameControl(
 
         clk_div_25_prev <= clk_div_25_curr;
         clk_div_25_curr <= clk_div[25];
-
         if (clk_div_25_curr == 1 && clk_div_25_prev == 0) begin
             clk_div_25_posedge <= 1;
         end else begin
             clk_div_25_posedge <= 0;
+        end
+
+        clk_div_22_prev <= clk_div_22_curr;
+        clk_div_22_curr <= clk_div[22];
+        if (clk_div_22_curr == 1 && clk_div_22_prev == 0) begin
+            clk_div_22_posedge <= 1;
+        end else begin
+            clk_div_22_posedge <= 0;
         end
     end
 
@@ -143,7 +154,7 @@ module GameControl(
                 end
             
                 // Handle block left-moving
-                if (moveLeftSign) begin
+                if (~fail && moveLeftSign) begin
                     moveLeftSign <= 0;
                     // Border detection
                     if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX >= 3 ||
@@ -180,7 +191,7 @@ module GameControl(
                 end
 
                 // Handle block right-moving
-                if (moveRightSign) begin
+                if (~fail && moveRightSign) begin
                     moveRightSign <= 0;
                     // Border detection
                     if (currBlockType == 3'b000 && currBlockState == 2'b00 && currBlockCenterX <= 7 ||
@@ -217,7 +228,7 @@ module GameControl(
                 end
 
                 // Handle block rotation
-                if (rotateSign) begin
+                if (~fail && rotateSign) begin
                     rotateSign <= 0;
                     currBlockState <= currBlockState + 1;
                     prevBlockState <= currBlockState;
@@ -228,7 +239,7 @@ module GameControl(
 
                 // Update block position and handle block landing
                 // Erase the previous block
-                if (updateBlockPositionSign) begin
+                if (~fail && updateBlockPositionSign) begin
                     updateBlockPositionSign <= 0;
                     drawCurrentBlockSign <= 1;
                     case (currBlockType)
@@ -342,7 +353,7 @@ module GameControl(
                 end
 
                 // Draw the current block
-                if (drawCurrentBlockSign) begin
+                if (~fail && drawCurrentBlockSign) begin
                     checkBlockLandedSign <= 1;
                     drawCurrentBlockSign <= 0;
                     case (currBlockType)
@@ -363,9 +374,9 @@ module GameControl(
                             endcase
                         end
                         3'b001: begin
-                            objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
-                            objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
-                            objectReg[currBlockCenterY - 1][currBlockCenterX    ] <= 1;
+                            objectReg[currBlockCenterY - 1][currBlockCenterX - 1] <= 1;
+                            objectReg[currBlockCenterY - 1][currBlockCenterX + 1] <= 1;
+                            objectReg[currBlockCenterY    ][currBlockCenterX - 1] <= 1;
                             objectReg[currBlockCenterY    ][currBlockCenterX + 1] <= 1;
                         end
                         3'b010: begin
@@ -456,7 +467,7 @@ module GameControl(
                 end
 
                 // Check if the block has landed
-                if (checkBlockLandedSign) begin
+                if (~fail && checkBlockLandedSign) begin
                     checkBlockLandedSign <= 0;
                     eliminateRowSign <= 1;
                     case (currBlockType)
@@ -636,7 +647,7 @@ module GameControl(
                 end
 
                 // Eliminate the full rows
-                if (eliminateRowSign) begin
+                if (~fail && eliminateRowSign) begin
                     for (row = 4; row < 24; row = row + 1) begin
                         rowSum = 0;
                         for (coln = 0; coln < 10; coln = coln + 1) begin
@@ -661,9 +672,24 @@ module GameControl(
                 end
 
                 // Detect game failure
-                if (maxHeight >= 20) begin
-                    fail <= 1;
-                end
+                if (~fail && (executeFail || maxHeight >= 20)) begin
+                    executeFail <= 1;
+                    if (executeFail == 0) begin
+                        row <= 23;
+                        coln <= 0;
+                    end else if (row == 4 && coln == 9) begin
+                        objectReg[row][coln] <= 1;
+                        fail <= 1;
+                        executeFail <= 0;
+                    end else if (coln == 9 && clk_div_22_posedge) begin
+                        objectReg[row][coln] <= 1;
+                        row <= row - 1;
+                        coln <= 0;
+                    end else if (coln != 9)begin
+                        objectReg[row][coln] <= 1;
+                        coln <= coln + 1;
+                    end
+                end // End failure animation
             end // End keyboard if
         end // End rst if
     end // End always
