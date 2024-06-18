@@ -74,7 +74,6 @@ module TopLevelShell(
         .clrn         (clrn         ),
         .nextblock    (nextBlock    ),
         .objectMatrix (objects      ),
-        .flash        (200'b0       ),
         .hs           (hs           ),
         .vs           (vs           ),
         .r            (r            ),
