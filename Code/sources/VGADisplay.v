@@ -3,7 +3,6 @@ module VGAdisplay(
     input clrn,                 // negative clear signal
     input [2:0] nextblock,      // type of nextblock 
     input [199:0] objectMatrix, // 10*20 14*14 blocks
-    input [199:0] flash,          
     output rd,                  // read pixel RAM (active high)
     output hs,
   	output vs,
