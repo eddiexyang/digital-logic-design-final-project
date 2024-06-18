@@ -1,11 +1,11 @@
 module GameControl(
     input clk,                   // clk signal
     input rst,                   // Asychronous reset, active high
-    input [1:0] keyboard_signal, // 00 for idle, 01 for left, 10 for right, 11 for rotate
+    input [2:0] keyboard_signal, // 000 for idle, 100 for down, 101 for left, 110 for right, 111 for rotate
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
     output [199:0] objects,      // 1 for existing object, 0 for empty
-    output reg fail                  // 1 for game over
+    output reg fail              // 1 for game over
 );
     // Here we use 24x10 registers to store the 20x10 game board
     // the 4 extra rows at top and 1 extra row at bottom
@@ -37,9 +37,9 @@ module GameControl(
 
     // Perform clock division
     reg [31:0] clk_div;
-    reg clk_div_26_prev;
-    reg clk_div_26_curr;
-    reg clk_div_26_posedge;
+    reg clk_div_25_prev;
+    reg clk_div_25_curr;
+    reg clk_div_25_posedge;
 
     always @(posedge clk) begin
         if (rst) begin
@@ -48,13 +48,13 @@ module GameControl(
             clk_div <= clk_div + 1;
         end
 
-        clk_div_26_prev <= clk_div_26_curr;
-        clk_div_26_curr <= clk_div[26];
+        clk_div_25_prev <= clk_div_25_curr;
+        clk_div_25_curr <= clk_div[25];
 
-        if (clk_div_26_curr == 1 && clk_div_26_prev == 0) begin
-            clk_div_26_posedge <= 1;
+        if (clk_div_25_curr == 1 && clk_div_25_prev == 0) begin
+            clk_div_25_posedge <= 1;
         end else begin
-            clk_div_26_posedge <= 0;
+            clk_div_25_posedge <= 0;
         end
     end
 
@@ -108,21 +108,20 @@ module GameControl(
             end
         end else begin
             // Handle keyboard signal
-            if (keyboard_signal == 2'b01) begin
+            if (keyboard_signal == 3'b101) begin
                 moveLeftSign <= 1;
-            end else if (keyboard_signal == 2'b10) begin
+            end else if (keyboard_signal == 3'b110) begin
                 moveRightSign <= 1;
-            end else if (keyboard_signal == 2'b11) begin
+            end else if (keyboard_signal == 3'b111) begin
                 rotateSign <= 1;
             end else begin
-
                 // Handle block dropping            
-                if (clk_div_26_posedge) begin
+                if (~fail && (clk_div_25_posedge || keyboard_signal == 3'b100)) begin
                     if (blockLanded) begin
                         score <= score + 1;
                         // Generate new block
                         blockLanded <= 0;
-                        nextBlock <= $urandom % 5;
+                        nextBlock <= clk_div % 5;
                         
                         currBlockType <= nextBlock;
                         currBlockState <= 2'b00;
