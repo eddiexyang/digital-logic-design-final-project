@@ -5,8 +5,9 @@ module KeyboardControl(
     input clrn,                       // negative clear signal
     output reg left,                  // signal for left key
     output reg right,                 // signal for right key
-    output reg down,                  // signal for reset
-    output reg up                     // signal for up/rotate key
+    output reg down,                  // signal for speeding up
+    output reg up,                    // signal for up/rotate key
+    output reg space                  // signal for reset
 );
 
 reg [3:0] count;        // count ps2_data bits
@@ -41,6 +42,14 @@ always @ (posedge clk) begin
                     8'hE0: begin
                         E0 <= 1;
                         F0 <= 0;
+                    end
+                    8'h29: begin // Space
+                        if(F0==1'b1) begin
+                            E0 <= 0; F0 <= 0; space <= 0;
+                        end
+                        else begin
+                            space <= 1; // detect passcode for Space
+                        end
                     end
                     8'h75: begin // Up or Rotate
                         if(E0==1'b1 && F0==1'b1) begin
