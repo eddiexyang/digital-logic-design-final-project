@@ -19,7 +19,7 @@ wire [9:0] col_addr;             // column address of current scanning pixel
 wire [4:0] row;                  // block row (0-19)
 wire [3:0] col;                  // block column (0-9)
 wire row_nextblock;              // nextblock row (0-1)
-wire [1:0] col_nextblock;        // nextblock col (0-3)\
+wire [1:0] col_nextblock;        // nextblock col (0-3)
 wire [2:0] index;                // index in nextblocks;
 wire [8:0] row_start_addr;       // top_left_corner pixel row_addr of the current block 
 wire [9:0] col_start_addr;       // top_left_corner pixel col_addr of the current block
@@ -43,14 +43,14 @@ assign rd = ~rdn;
 assign within_blocks = (col_addr >= 208 && col_addr <= 347) && (row_addr >= 105 && row_addr <= 383);     // (207,105): top left corner pixel addr of blocks, (346,382): bottom right corner pixel addr of blocks
 assign within_nextblocks = (col_addr >= 368 && col_addr <= 423) && (row_addr >= 279 && row_addr <= 306); // same as above
 assign row_nextblock = (row_addr - 279) / 14;
-assign col_nextblock = (col_addr - 367) / 14;
+assign col_nextblock = (col_addr - 368) / 14;
 assign index = row_nextblock * 2 + col_nextblock;
 assign row = (row_addr - 105) / 14;                                                                      // one single block has 12 rows with 2 frame rows
 assign col = (col_addr - 208) / 14;                                                                      // one single block has 12 columns with 2 frame columns
 assign row_start_addr = 105 + row * 14;
 assign col_start_addr = 208 + col * 14;
 assign row_start_addr_next = 279 + row_nextblock * 14;
-assign col_start_addr_next = 367 + col_nextblock * 14;                                          
+assign col_start_addr_next = 368 + col_nextblock * 14;                                          
 assign addr_background = 640 * row_addr + col_addr;
 assign addr_block = addr_background;//(row_addr - row_start_addr) * 14 + (col_addr - col_start_addr);
 assign addr_nextblock = addr_background;//(row_addr - row_start_addr_next) * 14 + (col_addr - col_start_addr_next);
