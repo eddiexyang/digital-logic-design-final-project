@@ -21,7 +21,7 @@ module TopLevelShell(
     reg rst = 0;
     wire left, right, down, up, space;
     reg [2:0] keyboard_signal;
-    always @(posedge clk) begin
+    always @(space, down, left, right, up) begin
         if (space) begin
             keyboard_signal <= 3'b000;
             rst <= 1;

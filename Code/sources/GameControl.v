@@ -27,6 +27,7 @@ module GameControl(
     
     reg gameStartSign = 0;
     reg [4:0] gameMaxHeight;
+    reg ignore_keyboard_input = 0;
 
     reg dropSign = 0;
     reg checkPositionSign = 0;
@@ -186,8 +187,16 @@ module GameControl(
             executeFail <= 0;
             gameMaxHeight <= 0;
         end else if (gameStartSign && ~fail) begin
+            // Keyboard debounce
+            if (clk_div_posedge[20]) begin
+                ignore_keyboard_input <= 0;
+            end
+
             // Handle block dropping            
-            if (~executeFail && (clk_div_posedge[25] || keyboard_signal == 3'b100)) begin
+            if (~executeFail && (clk_div_posedge[25] || 
+                                (~ignore_keyboard_input && keyboard_signal == 3'b100))
+            ) begin
+                ignore_keyboard_input <= 1;
                 if (blockLanded) begin
                     blockLanded <= 0;
                     score <= score + 1;
@@ -210,7 +219,7 @@ module GameControl(
             end
         
             // Handle block left-moving
-            if (~executeFail && keyboard_signal == 3'b101) begin
+            if (~executeFail && ~ignore_keyboard_input &&keyboard_signal == 3'b101) begin
                 checkPositionSign <= 1;
                 currBlockCenterX <= currBlockCenterX - 1;
                 prevBlockCenterX <= currBlockCenterX;
@@ -219,7 +228,7 @@ module GameControl(
             end
 
             // Handle block right-moving
-            if (~executeFail && keyboard_signal == 3'b110) begin
+            if (~executeFail && ~ignore_keyboard_input && keyboard_signal == 3'b110) begin
                 checkPositionSign <= 1;
                 currBlockCenterX <= currBlockCenterX + 1;
                 prevBlockCenterX <= currBlockCenterX;
@@ -228,7 +237,7 @@ module GameControl(
             end
 
             // Handle block rotation
-            if (~executeFail && keyboard_signal == 3'b111) begin
+            if (~executeFail && ~ignore_keyboard_input && keyboard_signal == 3'b111) begin
                 checkPositionSign <= 1;
                 currBlockState <= currBlockState + 1;
                 prevBlockCenterX <= currBlockCenterX;
@@ -277,7 +286,7 @@ module GameControl(
                     for (coln = 1; coln <= 10; coln = coln + 1) begin
                         rowSum = rowSum + objectReg[row][coln];   
                         if (objectReg[row][coln] == 1 && 24 - row > gameMaxHeight) begin
-                             gameMaxHeight <= 24 - row;
+                             gameMaxHeight = 24 - row;
                         end
                     end
                     if (rowSum == 10) begin
