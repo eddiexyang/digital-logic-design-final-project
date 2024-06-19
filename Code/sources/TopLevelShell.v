@@ -46,7 +46,10 @@ module TopLevelShell(
     GameControl u_GameControl(
         .clk             (clk             ),
         .rst             (rst             ),
-        .keyboard_signal (keyboard_signal ),
+        .left            (left            ),
+        .right           (right           ),
+        .down            (down            ),
+        .up              (up              ),
         .score           (score           ),
         .nextBlock       (nextBlock       ),
         .objects         (objects         ),
