@@ -201,6 +201,7 @@ module GameControl(
                 end else begin
                     // Move block down
                     dropSign <= 1;
+                    checkPositionSign <= 1;
                     currBlockCenterY <= currBlockCenterY + 1;
                     prevBlockState <= currBlockState;
                     prevBlockCenterX <= currBlockCenterX;
@@ -250,6 +251,16 @@ module GameControl(
                         blockLanded <= 1;
                         dropSign <= 0;
                         eliminateRowSign <= 1;
+                        // Update max height
+                        blockMaxHeight = 24 - prevBlockCenterY;
+                        for (i = 0; i < 3; i = i + 1) begin
+                            if (24 - (prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][i]) > blockMaxHeight) begin
+                                blockMaxHeight = 24 - (prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][i]);
+                            end
+                        end
+                        if (blockMaxHeight > gameMaxHeight) begin
+                            gameMaxHeight = blockMaxHeight;
+                        end
                     end
                 end else begin
                     updateBlockPositionSign <= 1;
@@ -268,16 +279,6 @@ module GameControl(
                 objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] = 1;
                 objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] = 1;
                 objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]] = 1;
-                
-                blockMaxHeight = 24 - currBlockCenterY;
-                for (i = 0; i < 3; i = i + 1) begin
-                    if (24 - (currBlockCenterY + coordOffsetY[currBlockType][currBlockState][i]) > blockMaxHeight) begin
-                        blockMaxHeight = 24 - (currBlockCenterY + coordOffsetY[currBlockType][currBlockState][i]);
-                    end
-                end
-                if (blockMaxHeight > gameMaxHeight) begin
-                    gameMaxHeight = blockMaxHeight;
-                end
             end
 
             // Eliminate the full rows
