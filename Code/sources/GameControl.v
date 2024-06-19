@@ -22,8 +22,8 @@ module GameControl(
     reg [1:0] prevBlockState;
     reg [3:0] prevBlockCenterX;
     reg [4:0] prevBlockCenterY;
-    reg signed [2:0] coordOffsetX [4:0][3:0][2:0]; // Indices: blockType, blockState, blockNumber
-    reg signed [2:0] coordOffsetY [4:0][3:0][2:0];
+    reg signed [7:0] coordOffsetX [4:0][3:0][2:0]; // Indices: blockType, blockState, blockNumber
+    reg signed [7:0] coordOffsetY [4:0][3:0][2:0];
     
     reg gameStartSign = 0;
     reg [4:0] gameMaxHeight;
@@ -238,36 +238,36 @@ module GameControl(
 
             // Check block position
             if (~executeFail && checkPositionSign) begin
-                checkPositionSign <= 0;
+                checkPositionSign = 0;
+                // Erase the previous block
+                objectReg[prevBlockCenterY][prevBlockCenterX] = 0;
+                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][0]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][0]] = 0;
+                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][1]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][1]] = 0;
+                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][2]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][2]] = 0;
+                // Check if the block can be placed
                 if (objectReg[currBlockCenterY][currBlockCenterX] ||
                     objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] ||
                     objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] ||
                     objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]]
                 ) begin
-                    currBlockCenterX <= prevBlockCenterX;
-                    currBlockCenterY <= prevBlockCenterY;
-                    currBlockState <= prevBlockState;
                     if (dropSign) begin
                         blockLanded <= 1;
                         dropSign <= 0;
                     end
+                    // Reset block
+                    currBlockCenterX = prevBlockCenterX;
+                    currBlockCenterY = prevBlockCenterY;
+                    currBlockState = prevBlockState;
+                    objectReg[currBlockCenterY][currBlockCenterX] = 1;
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] = 1;
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] = 1;
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]] = 1;
                 end else begin
-                    updateBlockPositionSign <= 1;
+                    objectReg[currBlockCenterY][currBlockCenterX] = 1;
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] = 1;
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] = 1;
+                    objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]] = 1;
                 end
-            end
-
-            // Update block position and handle block landing
-            // Erase the previous block
-            if (~executeFail && updateBlockPositionSign) begin
-                updateBlockPositionSign = 0;
-                objectReg[prevBlockCenterY][prevBlockCenterX] = 0;
-                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][0]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][0]] = 0;
-                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][1]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][1]] = 0;
-                objectReg[prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][2]][prevBlockCenterX + coordOffsetX[currBlockType][prevBlockState][2]] = 0;
-                objectReg[currBlockCenterY][currBlockCenterX] = 1;
-                objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][0]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][0]] = 1;
-                objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][1]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][1]] = 1;
-                objectReg[currBlockCenterY + coordOffsetY[currBlockType][currBlockState][2]][currBlockCenterX + coordOffsetX[currBlockType][currBlockState][2]] = 1;
             end
 
             // Eliminate the full rows
