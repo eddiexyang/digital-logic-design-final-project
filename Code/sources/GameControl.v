@@ -367,8 +367,7 @@ module GameControl(
     generate
         for (k = 4; k <= 23; k = k + 1) begin: map
             for (l = 1; l <= 10; l = l + 1) begin
-                // assign objects[10 * (k - 4) + l - 1] = objectReg[k][l];
-                assign objects[10 * (k-4) + l - 1] = objectReg[k - 4][l];
+                assign objects[10 * (k - 4) + l - 1] = objectReg[k][l];
             end
         end
     endgenerate
