@@ -56,6 +56,7 @@ assign col_start_addr_next = 368 + col_nextblock * 14;
 assign addr_background = 640 * row_addr + col_addr;
 assign addr_block = addr_background;//(row_addr - row_start_addr) * 14 + (col_addr - col_start_addr);
 assign addr_nextblock = addr_background;//(row_addr - row_start_addr_next) * 14 + (col_addr - col_start_addr_next);
+assign addr_fail = addr_background;
 
 assign en_flash = 0;//flash[row * 10 + col];
 assign en_block = objectMatrix[row * 10 + col];                 
