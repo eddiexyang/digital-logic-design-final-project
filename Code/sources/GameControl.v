@@ -316,11 +316,13 @@ module GameControl(
                     objectReg[row][coln] <= 1;
                     fail <= 1;
                     executeFail <= 0;
-                end else if (coln == 10 && clk_div_posedge[22]) begin
+                end else if (coln == 10) begin
                     objectReg[row][coln] <= 1;
-                    row <= row - 1;
-                    coln <= 0;
-                end else if (coln != 10)begin
+                    if (clk_div_posedge[22]) begin
+                        row <= row - 1;
+                        coln <= 1;    
+                    end
+                end else begin
                     objectReg[row][coln] <= 1;
                     coln <= coln + 1;
                 end
