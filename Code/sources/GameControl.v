@@ -26,7 +26,6 @@ module GameControl(
     reg signed [2:0] coordOffsetY [4:0][3:0][2:0];
     
     reg gameStartSign = 0;
-    reg [4:0] blockMaxHeight;
     reg [4:0] gameMaxHeight;
 
     reg dropSign = 0;
@@ -192,6 +191,7 @@ module GameControl(
                 if (blockLanded) begin
                     blockLanded <= 0;
                     score <= score + 1;
+                    eliminateRowSign <= 1;
                     // Generate new block
                     nextBlock <= clk_div % 5;
                     currBlockType <= nextBlock;
@@ -250,17 +250,6 @@ module GameControl(
                     if (dropSign) begin
                         blockLanded <= 1;
                         dropSign <= 0;
-                        eliminateRowSign <= 1;
-                        // Update max height
-                        blockMaxHeight = 24 - prevBlockCenterY;
-                        for (i = 0; i < 3; i = i + 1) begin
-                            if (24 - (prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][i]) > blockMaxHeight) begin
-                                blockMaxHeight = 24 - (prevBlockCenterY + coordOffsetY[currBlockType][prevBlockState][i]);
-                            end
-                        end
-                        if (blockMaxHeight > gameMaxHeight) begin
-                            gameMaxHeight = blockMaxHeight;
-                        end
                     end
                 end else begin
                     updateBlockPositionSign <= 1;
@@ -285,18 +274,21 @@ module GameControl(
             if (~executeFail && eliminateRowSign) begin
                 for (row = 4; row < 24; row = row + 1) begin
                     rowSum = 0;
-                    for (coln = 0; coln < 10; coln = coln + 1) begin
-                        rowSum = rowSum + objectReg[row][coln];
+                    for (coln = 1; coln <= 10; coln = coln + 1) begin
+                        rowSum = rowSum + objectReg[row][coln];   
+                        if (objectReg[row][coln] == 1 && 24 - row > gameMaxHeight) begin
+                             gameMaxHeight <= 24 - row;
+                        end
                     end
                     if (rowSum == 10) begin
                         // Eliminate the row
                         for (p = row; p > 4; p = p - 1) begin
-                            for (q = 0; q < 10; q = q + 1) begin
+                            for (q = 1; q <= 10; q = q + 1) begin
                                 objectReg[p][q] = objectReg[p - 1][q];
                             end
                         end
                         // Clear the top row
-                        for (r = 0; r < 10; r = r + 1) begin
+                        for (r = 1; r <= 10; r = r + 1) begin
                             objectReg[4][r] = 0;
                         end
                         // Update the score
@@ -335,7 +327,8 @@ module GameControl(
     generate
         for (k = 4; k <= 23; k = k + 1) begin: map
             for (l = 1; l <= 10; l = l + 1) begin
-                assign objects[10 * (k - 4) + l - 1] = objectReg[k][l];
+                // assign objects[10 * (k - 4) + l - 1] = objectReg[k][l];
+                assign objects[10 * (k-4) + l - 1] = objectReg[k - 4][l];
             end
         end
     endgenerate
