@@ -7,7 +7,9 @@ module TopLevelShell(
     output vs,
     output [3:0] r,
     output [3:0] g,
-    output [3:0] b
+    output [3:0] b,
+    output reg led,
+    output fail
 );  
     // Perform clock division
     reg [31:0] clk_div = 0;
@@ -15,22 +17,16 @@ module TopLevelShell(
         clk_div <= clk_div + 1;
     end
 
-    // Handle reset signal from keyboard
-    reg rst;
-    wire space;
+    // Handle keyboard inputs
+    reg rst = 0;
+    wire left, right, down, up, space;
+    reg [2:0] keyboard_signal;
     always @(posedge clk) begin
         if (space) begin
+            keyboard_signal <= 3'b000;
             rst <= 1;
-        end else begin
-            rst <= 0;
-        end
-    end
-
-    // Handle keyboard definitions
-    wire left, right, down, up;
-    reg [2:0] keyboard_signal;
-    always @(left, right, up, down) begin
-        if (down) begin
+            led = ~led;
+        end else if (down) begin
             keyboard_signal <= 3'b100;
         end else if (left) begin
             keyboard_signal <= 3'b101;
@@ -40,6 +36,7 @@ module TopLevelShell(
             keyboard_signal <= 3'b111;
         end else begin
             keyboard_signal <= 3'b000;
+            rst <= 0;
         end
     end
 
@@ -47,7 +44,6 @@ module TopLevelShell(
     wire [6:0] score;
     wire [2:0] nextBlock;
     wire [199:0] objects;
-    wire fail;
     
     // Instantiate modules
     KeyboardControl u_KeyboardControl(
@@ -58,7 +54,8 @@ module TopLevelShell(
         .left     (left     ),
         .right    (right    ),
         .down     (down     ),
-        .up       (up       )
+        .up       (up       ),
+        .space    (space    )
     );
 
     GameControl u_GameControl(
@@ -80,7 +77,12 @@ module TopLevelShell(
         .vs           (vs           ),
         .r            (r            ),
         .g            (g            ),
-        .b            (b            )
+        .b            (b            ),
+        .fail         (fail         )
     );
+
+    initial begin
+        led = 0;
+    end
 
 endmodule

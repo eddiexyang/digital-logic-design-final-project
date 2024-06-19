@@ -58,15 +58,6 @@ module GameControl(
         end
     endgenerate
 
-    // Handle reset signal
-    reg rst_reg = 0;
-    always @(posedge rst) begin
-        rst_reg <= 1;
-        if (clk_div_posedge[10]) begin
-            rst_reg <= 0;
-        end
-    end
-
     // Assign initial values to the game board
     initial begin
         // Fill the game board with 1s
@@ -164,17 +155,12 @@ module GameControl(
     
     always @(posedge clk) begin
         // Handle reset signal
-        if (rst_reg) begin
+        if (rst) begin
             // Clear game board
-            objectReg[reg_i][reg_j] <= 0;
-            if (reg_i == 23 && reg_j == 10) begin
-                reg_i <= 0;
-                reg_j <= 1;
-            end else if (reg_j == 10) begin
-                reg_i <= reg_i + 1;
-                reg_j <= 0;
-            end else begin
-                reg_j <= reg_j + 1;
+            for (i = 0; i <= 23; i = i + 1) begin
+                for (j = 1; j <= 10; j = j + 1) begin
+                    objectReg[i][j] <= 0;
+                end
             end
 
             gameStartSign = 1;
@@ -198,6 +184,7 @@ module GameControl(
             score <= 7'b0;
             nextBlock <= 3'b0;
             fail <= 0;
+            executeFail <= 0;
             gameMaxHeight <= 0;
         end else if (gameStartSign && ~fail) begin
             // Handle block dropping            
