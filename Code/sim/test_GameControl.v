@@ -7,14 +7,16 @@ module test_GameControl();
     wire [199:0] objects;
     wire fail;
     
-    always @(*) begin
+    always begin
         #5; clk <= ~clk;
     end
 
     initial begin
-        clk = 0;
-        rst = 1; #10; rst = 0;
-        keyboard_signal = 0;
+        clk = 0; rst = 0;
+        #200; rst = 1;
+        #5; rst = 0;
+        #5000; rst = 1;
+        #5 rst = 0;        
     end
 
     GameControl u_GameControl(

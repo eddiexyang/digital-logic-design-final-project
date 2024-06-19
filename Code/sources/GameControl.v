@@ -33,25 +33,23 @@ module GameControl(
     reg checkPositionSign = 0;
     reg updateBlockPositionSign = 0;
     reg drawCurrentBlockSign = 0;
-    reg checkBlockLandedSign = 0;
     reg eliminateRowSign = 0;
     reg blockLanded = 0;
 
     reg [4:0] rowSum = 0;
     reg executeFail = 0;
+    
     integer i, j, row, coln, p, q, r;
+    reg [7:0] reg_i = 0;
+    reg [7:0] reg_j = 1;
 
     // Perform clock division
-    reg [31:0] clk_div;
+    reg [31:0] clk_div = 0;
     reg [31:0] clk_div_prev;
     wire [31:0] clk_div_posedge;
-    always @(posedge clk) begin
-        if (rst) begin
-            clk_div <= 0;
-        end else begin
-            clk_div <= clk_div + 1;
-            clk_div_prev <= clk_div;
-        end
+    always @(posedge clk) begin        
+        clk_div <= clk_div + 1;
+        clk_div_prev <= clk_div;
     end
     genvar div;
     generate
@@ -60,11 +58,21 @@ module GameControl(
         end
     endgenerate
 
+    // Handle reset signal
+    reg rst_reg = 0;
+    always @(posedge rst) begin
+        rst_reg <= 1;
+        if (clk_div_posedge[10]) begin
+            rst_reg <= 0;
+        end
+    end
+
+    // Assign initial values to the game board
     initial begin
         // Fill the game board with 1s
         for (i = 0; i <= 24; i = i + 1) begin
             for (j = 0; j <= 11; j = j + 1) begin
-                objectReg[i][j] = 0;
+                objectReg[i][j] = 1;
             end
         end
         // Initialize the block generation offsets
@@ -153,17 +161,24 @@ module GameControl(
     // #################################
     // # Main Tetris logic starts here #
     // #################################
-
+    
     always @(posedge clk) begin
         // Handle reset signal
-        if (rst) begin
-            for (i = 0; i <= 23; i = i + 1) begin
-                for (j = 1; j <= 10; j = j + 1) begin
-                    objectReg[i][j] <= 0;
-                end
+        if (rst_reg) begin
+            // Clear game board
+            objectReg[reg_i][reg_j] <= 0;
+            if (reg_i == 23 && reg_j == 10) begin
+                reg_i <= 0;
+                reg_j <= 1;
+            end else if (reg_j == 10) begin
+                reg_i <= reg_i + 1;
+                reg_j <= 0;
+            end else begin
+                reg_j <= reg_j + 1;
             end
-            gameStartSign = 1;
 
+            gameStartSign = 1;
+            // Clear block state
             currBlockType <= 3'b0;
             currBlockState <= 2'b0;
             currBlockCenterX <= 5;
@@ -172,13 +187,14 @@ module GameControl(
             prevBlockCenterX <= 5;
             prevBlockCenterY <= 2;
             
+            // Reset signs
             checkPositionSign <= 0;
             updateBlockPositionSign <= 0;
             drawCurrentBlockSign <= 0;
-            checkBlockLandedSign <= 0;
             eliminateRowSign <= 0;
             blockLanded <= 0;
 
+            // Clear game status
             score <= 7'b0;
             nextBlock <= 3'b0;
             fail <= 0;
@@ -197,7 +213,6 @@ module GameControl(
                     currBlockCenterY <= 2;
                 end else begin
                     // Move block down
-                    checkBlockLandedSign <= 1;
                     dropSign <= 1;
                     currBlockCenterY <= currBlockCenterY + 1;
                     prevBlockState <= currBlockState;
