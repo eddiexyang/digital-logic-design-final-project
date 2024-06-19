@@ -2,14 +2,11 @@ module TopLevelShell(
     input clk,
     input ps2_clk,
     input ps2_data,
-
     output hs,
     output vs,
     output [3:0] r,
     output [3:0] g,
-    output [3:0] b,
-    output reg led,
-    output fail
+    output [3:0] b
 );  
     // Perform clock division
     reg [31:0] clk_div = 0;
@@ -20,22 +17,10 @@ module TopLevelShell(
     // Handle keyboard inputs
     reg rst = 0;
     wire left, right, down, up, space;
-    reg [2:0] keyboard_signal;
-    always @(space, down, left, right, up) begin
+    always @(space) begin
         if (space) begin
-            keyboard_signal <= 3'b000;
-            rst <= 1;
-            led = ~led;
-        end else if (down) begin
-            keyboard_signal <= 3'b100;
-        end else if (left) begin
-            keyboard_signal <= 3'b101;
-        end else if (right) begin
-            keyboard_signal <= 3'b110;
-        end else if (up) begin
-            keyboard_signal <= 3'b111;
+            rst <= 1; 
         end else begin
-            keyboard_signal <= 3'b000;
             rst <= 0;
         end
     end
@@ -80,9 +65,5 @@ module TopLevelShell(
         .b            (b            ),
         .fail         (fail         )
     );
-
-    initial begin
-        led = 0;
-    end
 
 endmodule

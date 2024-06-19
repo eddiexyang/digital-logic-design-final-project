@@ -1,7 +1,10 @@
 module GameControl(
     input clk,                   // clk signal
     input rst,                   // Asychronous reset, active high
-    input [2:0] keyboard_signal, // 000 for idle, 100 for down, 101 for left, 110 for right, 111 for rotate
+    input left,
+    input right,
+    input up,
+    input down,
     output reg [6:0] score,
     output reg [2:0] nextBlock,  // See definition in the documentation
     output [199:0] objects,      // 1 for existing object, 0 for empty
@@ -57,6 +60,36 @@ module GameControl(
             assign clk_div_posedge[div] = clk_div[div] && ~clk_div_prev[div];
         end
     endgenerate
+
+    // Handle keyboard signal
+    reg left_posedge, right_posedge, up_posedge, down_posedge;
+    reg left_prev, right_prev, up_prev, down_prev;
+    always @(posedge clk) begin
+        left_prev <= left;
+        right_prev <= right;
+        up_prev <= up;
+        down_prev <= down;
+        if (~left_prev && left) begin
+            left_posedge <= 1;
+        end else begin
+            left_posedge <= 0;
+        end
+        if (~right_prev && right) begin
+            right_posedge <= 1;
+        end else begin
+            right_posedge <= 0;
+        end
+        if (~up_prev && up) begin
+            up_posedge <= 1;
+        end else begin
+            up_posedge <= 0;
+        end
+        if (~down_prev && down) begin
+            down_posedge <= 1;
+        end else begin
+            down_posedge <= 0;
+        end
+    end
 
     // Assign initial values to the game board
     initial begin
@@ -193,9 +226,7 @@ module GameControl(
             end
 
             // Handle block dropping            
-            if (~executeFail && (clk_div_posedge[25] || 
-                                (~ignore_keyboard_input && keyboard_signal == 3'b100))
-            ) begin
+            if (~executeFail && (clk_div_posedge[25] || down_posedge)) begin
                 ignore_keyboard_input <= 1;
                 if (blockLanded) begin
                     blockLanded <= 0;
@@ -219,7 +250,7 @@ module GameControl(
             end
         
             // Handle block left-moving
-            if (~executeFail && ~ignore_keyboard_input &&keyboard_signal == 3'b101) begin
+            if (~executeFail && left_posedge) begin
                 checkPositionSign <= 1;
                 currBlockCenterX <= currBlockCenterX - 1;
                 prevBlockCenterX <= currBlockCenterX;
@@ -228,7 +259,7 @@ module GameControl(
             end
 
             // Handle block right-moving
-            if (~executeFail && ~ignore_keyboard_input && keyboard_signal == 3'b110) begin
+            if (~executeFail && right_posedge) begin
                 checkPositionSign <= 1;
                 currBlockCenterX <= currBlockCenterX + 1;
                 prevBlockCenterX <= currBlockCenterX;
@@ -237,7 +268,7 @@ module GameControl(
             end
 
             // Handle block rotation
-            if (~executeFail && ~ignore_keyboard_input && keyboard_signal == 3'b111) begin
+            if (~executeFail && up_posedge) begin
                 checkPositionSign <= 1;
                 currBlockState <= currBlockState + 1;
                 prevBlockCenterX <= currBlockCenterX;
