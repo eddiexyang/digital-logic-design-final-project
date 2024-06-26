@@ -221,12 +221,12 @@ module GameControl(
             gameMaxHeight <= 0;
         end else if (gameStartSign && ~fail) begin
             // Keyboard debounce
-            if (clk_div_posedge[20]) begin
+            if (clk_div_posedge[8]) begin
                 ignore_keyboard_input <= 0;
             end
 
             // Handle block dropping            
-            if (~executeFail && (clk_div_posedge[25] || down_posedge)) begin
+            if (~executeFail && (clk_div_posedge[10] || down_posedge)) begin
                 ignore_keyboard_input <= 1;
                 if (blockLanded) begin
                     blockLanded <= 0;
