@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is the final project for Zhejiang University Digital Logic Design. We implemented a Tetris Game in Verilog. Press space to start and the arrows keys are for block control. There are still some bugs and any kinds of pull requests are welcome!
+This is the final project for Zhejiang University Digital Logic Design (CS1019F). We implemented a Tetris Game in Verilog. Press space to start and the arrows keys are for block control. There are still some bugs and any kinds of pull requests are welcome!
 
 ## Authors
 
