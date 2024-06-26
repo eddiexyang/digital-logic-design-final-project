@@ -1,7 +1,8 @@
 module test_GameControl();
     reg clk;
     reg rst;
-    
+    wire [199:0] objects;
+
     always begin
         #5; clk <= ~clk;
     end
